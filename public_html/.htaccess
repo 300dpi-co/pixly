@@ -1,6 +1,10 @@
 # FWP Image Gallery - Apache Configuration
 
+# Set directory index
+DirectoryIndex index.php index.html
+
 # Enable rewrite engine
+<IfModule mod_rewrite.c>
 RewriteEngine On
 
 # Set base directory
@@ -18,20 +22,31 @@ RewriteRule ^(.*)/$ /$1 [L,R=301]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
+</IfModule>
 
 # Prevent directory browsing
 Options -Indexes
 
 # Block access to sensitive files
-<FilesMatch "\.(env|log|sql|sh|md|json|lock|yml|yaml|ini|bak|old)$">
-    Order allow,deny
-    Deny from all
+<FilesMatch "\.(env|log|sql|sh|md|lock|yml|yaml|ini|bak|old)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
 </FilesMatch>
 
 # Block access to hidden files
 <FilesMatch "^\.">
-    Order allow,deny
-    Deny from all
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
 </FilesMatch>
 
 # Security headers
