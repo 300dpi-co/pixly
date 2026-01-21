@@ -3,7 +3,7 @@
 A modern, SEO-focused image gallery platform built with vanilla PHP 8.4. Features AI-powered image analysis, contributor system, and comprehensive admin panel.
 
 ![PHP Version](https://img.shields.io/badge/PHP-8.4+-blue.svg)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
+![License](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)
 
 ## Features
 
@@ -192,7 +192,13 @@ If you discover a security vulnerability, please email security@yourdomain.com i
 
 ## License
 
-This project is open-sourced under the [MIT License](LICENSE).
+This project is dual-licensed:
+
+- **AGPL-3.0** - Free for open source use. If you modify or run this software as a service, you must open-source your code. See [LICENSE-AGPL.txt](LICENSE-AGPL.txt).
+
+- **Commercial License** - For businesses that cannot comply with AGPL requirements. Contact license@300dpi.co for pricing.
+
+See [LICENSE](LICENSE) for details.
 
 ## Credits
 
