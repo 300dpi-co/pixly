@@ -6,7 +6,7 @@ namespace App\Controllers\Admin;
 
 use App\Core\Controller;
 use App\Core\Response;
-use App\Services\AI\DeepSeekService;
+use App\Services\ClaudeAIService;
 use App\Services\AI\MetadataGenerator;
 
 /**
@@ -22,7 +22,7 @@ class AIController extends Controller
     public function index(): Response
     {
         $db = $this->db();
-        $ai = new DeepSeekService();
+        $ai = new ClaudeAIService();
 
         // Get queue stats
         $stats = [
@@ -62,7 +62,7 @@ class AIController extends Controller
         // Get recent API logs
         $apiLogs = $db->fetchAll(
             "SELECT * FROM api_logs
-             WHERE api_name = 'deepseek'
+             WHERE api_name IN ('deepseek', 'claude')
              ORDER BY created_at DESC
              LIMIT 10"
         );

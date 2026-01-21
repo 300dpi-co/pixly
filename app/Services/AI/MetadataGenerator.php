@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\AI;
 
+use App\Services\ClaudeAIService;
+
 /**
  * Metadata Generator
  *
@@ -11,12 +13,12 @@ namespace App\Services\AI;
  */
 class MetadataGenerator
 {
-    private DeepSeekService $ai;
+    private ClaudeAIService $ai;
     private array $errors = [];
 
     public function __construct()
     {
-        $this->ai = new DeepSeekService();
+        $this->ai = new ClaudeAIService();
     }
 
     /**
@@ -36,18 +38,32 @@ class MetadataGenerator
         }
 
         // Get full path to image
-        $imagePath = \ROOT_PATH . '/public_html/uploads/' . $image['storage_path'];
+        $imagePath = \ROOT_PATH . '/uploads/' . $image['storage_path'];
 
         if (!file_exists($imagePath)) {
             $this->errors[] = 'Image file not found: ' . $image['storage_path'];
             return false;
         }
 
-        // Analyze image with AI (pass existing title for context)
-        $analysis = $this->ai->analyzeImage($imagePath, $image['title']);
+        // Check if AI is configured
+        if (!$this->ai->isConfigured()) {
+            $this->errors[] = 'Claude AI not configured. Add API key in Settings > API Keys.';
+            return false;
+        }
 
-        if (!$analysis) {
-            $this->errors[] = 'AI analysis failed: ' . ($this->ai->getLastError()['message'] ?? 'Unknown error');
+        // Get existing categories for context
+        $categories = $db->fetchAll("SELECT id, name FROM categories WHERE is_active = 1 ORDER BY name");
+
+        // Analyze image with Claude AI
+        try {
+            $analysis = $this->ai->analyzeImage($imagePath, $categories);
+        } catch (\Throwable $e) {
+            $this->errors[] = 'AI analysis failed: ' . $e->getMessage();
+            return false;
+        }
+
+        if (empty($analysis)) {
+            $this->errors[] = 'AI analysis returned empty result';
             return false;
         }
 
@@ -55,14 +71,19 @@ class MetadataGenerator
         $updates = [
             'ai_description' => $analysis['description'] ?? null,
             'ai_tags' => json_encode($analysis['tags'] ?? []),
-            'ai_category_suggestions' => json_encode([$analysis['category'] ?? null]),
+            'ai_category_suggestions' => json_encode($analysis['categories'] ?? []),
             'ai_processed_at' => date('Y-m-d H:i:s'),
-            'moderation_score' => $analysis['safety_score'] ?? null,
+            'dominant_color' => $analysis['dominant_color'] ?? null,
+            'color_palette' => !empty($analysis['colors']) ? json_encode($analysis['colors']) : null,
         ];
 
         // Optionally update main fields if they're empty or generic
         if (empty($image['description']) && !empty($analysis['description'])) {
             $updates['description'] = $analysis['description'];
+        }
+
+        if (empty($image['caption']) && !empty($analysis['caption'])) {
+            $updates['caption'] = $analysis['caption'];
         }
 
         // Update title if it's just the filename
@@ -71,6 +92,8 @@ class MetadataGenerator
             $updates['title'] = $analysis['title'];
             $updates['alt_text'] = $analysis['alt_text'] ?? $analysis['title'];
             $titleUpdated = true;
+        } elseif (empty($image['alt_text']) && !empty($analysis['alt_text'])) {
+            $updates['alt_text'] = $analysis['alt_text'];
         }
 
         // Generate clean SEO slug from the final title
@@ -93,9 +116,11 @@ class MetadataGenerator
             $this->syncAiTags($imageId, $analysis['tags']);
         }
 
-        // Suggest category
-        if (!empty($analysis['category'])) {
-            $this->suggestCategory($imageId, $analysis['category']);
+        // Suggest categories
+        if (!empty($analysis['categories'])) {
+            foreach ($analysis['categories'] as $categoryName) {
+                $this->suggestCategory($imageId, $categoryName);
+            }
         }
 
         return true;
