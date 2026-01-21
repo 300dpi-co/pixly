@@ -5,20 +5,65 @@ declare(strict_types=1);
 namespace App\Services\AI;
 
 use App\Services\ClaudeAIService;
+use App\Services\ReplicateAIService;
 
 /**
  * Metadata Generator
  *
  * Uses AI to generate SEO-optimized metadata for images.
+ * Supports Claude and Replicate (LLaVA) backends.
  */
 class MetadataGenerator
 {
-    private ClaudeAIService $ai;
+    private ClaudeAIService|ReplicateAIService $ai;
+    private string $provider;
     private array $errors = [];
 
-    public function __construct()
+    public function __construct(?string $provider = null)
     {
-        $this->ai = new ClaudeAIService();
+        $this->provider = $provider ?? $this->getConfiguredProvider();
+
+        if ($this->provider === 'replicate') {
+            $this->ai = new ReplicateAIService();
+        } else {
+            $this->ai = new ClaudeAIService();
+        }
+    }
+
+    /**
+     * Get the configured AI provider from settings
+     */
+    private function getConfiguredProvider(): string
+    {
+        try {
+            if (function_exists('db')) {
+                $db = db();
+                $result = $db->fetch(
+                    "SELECT setting_value FROM settings WHERE setting_key = 'ai_provider'"
+                );
+                if ($result && !empty($result['setting_value'])) {
+                    return $result['setting_value'];
+                }
+            }
+        } catch (\Throwable $e) {
+            // Fall through
+        }
+
+        // Check which API key is configured
+        $replicate = new ReplicateAIService();
+        if ($replicate->isConfigured()) {
+            return 'replicate';
+        }
+
+        return 'claude';
+    }
+
+    /**
+     * Get current provider name
+     */
+    public function getProvider(): string
+    {
+        return $this->provider;
     }
 
     /**
@@ -47,7 +92,8 @@ class MetadataGenerator
 
         // Check if AI is configured
         if (!$this->ai->isConfigured()) {
-            $this->errors[] = 'Claude AI not configured. Add API key in Settings > API Keys.';
+            $providerName = $this->provider === 'replicate' ? 'Replicate' : 'Claude';
+            $this->errors[] = "{$providerName} AI not configured. Add API key in Settings > API Keys.";
             return false;
         }
 

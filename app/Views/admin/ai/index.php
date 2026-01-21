@@ -8,7 +8,7 @@
             </svg>
             <div class="ml-3">
                 <h3 class="text-sm font-medium text-yellow-800">API Key Not Configured</h3>
-                <p class="mt-1 text-sm text-yellow-700">Add your DeepSeek API key in <code class="bg-yellow-100 px-1 rounded">app/Config/config.php</code></p>
+                <p class="mt-1 text-sm text-yellow-700">Add your <?= e($providerName ?? 'AI') ?> API key in Settings > API Keys</p>
             </div>
         </div>
     </div>
@@ -19,7 +19,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
             <div class="ml-3">
-                <h3 class="text-sm font-medium text-green-800">DeepSeek API Connected</h3>
+                <h3 class="text-sm font-medium text-green-800"><?= e($providerName ?? 'AI') ?> Connected</h3>
                 <p class="mt-1 text-sm text-green-700">AI processing is ready to use.</p>
             </div>
         </div>

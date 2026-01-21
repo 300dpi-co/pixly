@@ -7,6 +7,7 @@ namespace App\Controllers\Admin;
 use App\Core\Controller;
 use App\Core\Response;
 use App\Services\ClaudeAIService;
+use App\Services\ReplicateAIService;
 use App\Services\AI\MetadataGenerator;
 
 /**
@@ -22,7 +23,15 @@ class AIController extends Controller
     public function index(): Response
     {
         $db = $this->db();
-        $ai = new ClaudeAIService();
+        $generator = new MetadataGenerator();
+        $provider = $generator->getProvider();
+
+        // Check if the current provider is configured
+        if ($provider === 'replicate') {
+            $ai = new ReplicateAIService();
+        } else {
+            $ai = new ClaudeAIService();
+        }
 
         // Get queue stats
         $stats = [
@@ -71,6 +80,8 @@ class AIController extends Controller
             'title' => 'AI Processing',
             'currentPage' => 'ai',
             'isConfigured' => $ai->isConfigured(),
+            'provider' => $provider,
+            'providerName' => $provider === 'replicate' ? 'Replicate (LLaVA)' : 'Claude',
             'stats' => $stats,
             'queue' => $queue,
             'unprocessed' => $unprocessed,
