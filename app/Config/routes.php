@@ -225,6 +225,7 @@ $router->group(['prefix' => 'admin', 'middleware' => ['auth', 'admin']], functio
     $router->post('/ai/retry-failed', 'App\Controllers\Admin\AIController@retryFailed', ['csrf']);
 
     // System
+    $router->post('/system/check-update', 'App\Controllers\Admin\SystemController@checkUpdate', ['csrf']);
     $router->post('/system/update', 'App\Controllers\Admin\SystemController@update', ['csrf']);
 
     // Trends & Analytics

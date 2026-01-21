@@ -17,6 +17,53 @@ use App\Services\AutoUpdater;
 class SystemController extends Controller
 {
     /**
+     * Check for updates (clears cache and fetches fresh)
+     */
+    public function checkUpdate(): Response
+    {
+        try {
+            $checker = new UpdateChecker();
+
+            // Clear cache and fetch fresh
+            $checker->clearCache();
+            $checker->silentCheck();
+
+            $currentVersion = file_exists(ROOT_PATH . '/VERSION')
+                ? trim(file_get_contents(ROOT_PATH . '/VERSION'))
+                : '1.0.0';
+
+            $hasUpdate = $checker->hasUpdate();
+            $latestVersion = $checker->getLatestVersion();
+            $announcement = $checker->getAnnouncement();
+
+            if ($hasUpdate) {
+                return $this->json([
+                    'success' => true,
+                    'has_update' => true,
+                    'current_version' => $currentVersion,
+                    'latest_version' => $latestVersion,
+                    'announcement' => $announcement,
+                    'message' => "Update available: v{$latestVersion}",
+                ]);
+            }
+
+            return $this->json([
+                'success' => true,
+                'has_update' => false,
+                'current_version' => $currentVersion,
+                'latest_version' => $latestVersion,
+                'message' => 'You are running the latest version',
+            ]);
+
+        } catch (\Throwable $e) {
+            return $this->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Perform manual system update
      */
     public function update(): Response
