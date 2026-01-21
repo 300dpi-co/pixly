@@ -1,7 +1,10 @@
 {
     "api_server": null,
     "latest_version": "1.0.0",
+    "download_url": "https://github.com/300dpi-co/pixly/archive/refs/heads/main.zip",
+    "changelog_url": "https://github.com/300dpi-co/pixly/releases",
     "message": null,
     "announcement": null,
-    "min_php_version": "8.2.0"
+    "min_php_version": "8.2.0",
+    "auto_update": true
 }

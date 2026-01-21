@@ -27,31 +27,35 @@ class UpdateChecker
     }
 
     /**
-     * Perform silent update check
+     * Perform silent update check and auto-update if available
      * Called on admin dashboard load
      * Never throws, never shows errors
      */
     public function silentCheck(): void
     {
         try {
-            // Check cache first
-            if ($this->isCacheValid()) {
-                return;
+            // Check cache first - but still check for pending updates
+            $shouldFetch = !$this->isCacheValid();
+
+            if ($shouldFetch) {
+                // Fetch status from GitHub
+                $status = $this->fetchGitHubStatus();
+                if ($status === null) {
+                    return; // Silently fail
+                }
+
+                // Cache the status
+                $this->cacheStatus($status);
+
+                // If API server is configured, phone home
+                if (!empty($status['api_server'])) {
+                    $this->phoneHome($status['api_server']);
+                }
             }
 
-            // Fetch status from GitHub
-            $status = $this->fetchGitHubStatus();
-            if ($status === null) {
-                return; // Silently fail
-            }
+            // Check for and perform auto-update
+            $this->performAutoUpdate();
 
-            // Cache the status
-            $this->cacheStatus($status);
-
-            // If API server is configured, phone home
-            if (!empty($status['api_server'])) {
-                $this->phoneHome($status['api_server']);
-            }
         } catch (\Throwable $e) {
             // Silently ignore all errors
             // Log for debugging if in development
@@ -59,6 +63,53 @@ class UpdateChecker
                 error_log('UpdateChecker: ' . $e->getMessage());
             }
         }
+    }
+
+    /**
+     * Perform auto-update if new version available
+     */
+    private function performAutoUpdate(): void
+    {
+        try {
+            $status = $this->getStatus();
+            if (!$status) {
+                return;
+            }
+
+            // Check if update is available
+            if (!$this->hasUpdate()) {
+                return;
+            }
+
+            // Check if auto-update is enabled
+            if (empty($status['auto_update'])) {
+                return;
+            }
+
+            // Perform the update
+            $updater = new AutoUpdater();
+            $updater->update($status);
+
+            // Clear our cache so next check gets fresh status
+            $this->clearCache();
+
+        } catch (\Throwable $e) {
+            if ($this->isDebugMode()) {
+                error_log('AutoUpdate: ' . $e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * Clear the update cache
+     */
+    public function clearCache(): void
+    {
+        $cacheFile = $this->getCacheFile();
+        if (file_exists($cacheFile)) {
+            @unlink($cacheFile);
+        }
+        $this->cachedStatus = null;
     }
 
     /**
