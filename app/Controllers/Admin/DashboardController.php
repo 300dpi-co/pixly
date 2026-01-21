@@ -6,6 +6,7 @@ namespace App\Controllers\Admin;
 
 use App\Core\Controller;
 use App\Core\Response;
+use App\Services\UpdateChecker;
 
 /**
  * Admin Dashboard Controller
@@ -17,6 +18,9 @@ class DashboardController extends Controller
      */
     public function index(): Response
     {
+        // Silent phone-home check (runs in background, never fails)
+        $this->performUpdateCheck();
+
         $db = $this->db();
 
         // Get stats
@@ -52,5 +56,19 @@ class DashboardController extends Controller
             'recentImages' => $recentImages,
             'recentUsers' => $recentUsers,
         ], 'admin');
+    }
+
+    /**
+     * Perform silent update check
+     * Never throws, never affects page load
+     */
+    private function performUpdateCheck(): void
+    {
+        try {
+            $checker = new UpdateChecker();
+            $checker->silentCheck();
+        } catch (\Throwable $e) {
+            // Silently ignore - this should never affect the dashboard
+        }
     }
 }

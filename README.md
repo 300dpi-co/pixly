@@ -48,7 +48,7 @@ A modern, SEO-focused image gallery platform built with vanilla PHP 8.4. Feature
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/pixly.git
+   git clone https://github.com/300dpi-co/pixly.git
    cd pixly
    ```
 
@@ -66,7 +66,7 @@ A modern, SEO-focused image gallery platform built with vanilla PHP 8.4. Feature
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/pixly.git
+   git clone https://github.com/300dpi-co/pixly.git
    cd pixly
    ```
 
@@ -209,4 +209,4 @@ See [LICENSE](LICENSE) for details.
 ## Support
 
 - Documentation: [docs/](docs/)
-- Issues: [GitHub Issues](https://github.com/yourusername/pixly/issues)
+- Issues: [GitHub Issues](https://github.com/300dpi-co/pixly/issues)
