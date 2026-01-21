@@ -1,3 +1,40 @@
+<?php if (!empty($updateInfo['available'])): ?>
+<!-- Update Available Banner -->
+<div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg shadow-lg p-4 mb-6">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center text-white">
+            <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            <div>
+                <p class="font-semibold">Update Available!</p>
+                <p class="text-sm text-blue-100">Version <?= e($updateInfo['latest_version']) ?> is available. You're running <?= e($updateInfo['current_version']) ?>.</p>
+            </div>
+        </div>
+        <a href="https://github.com/300dpi-co/pixly/releases" target="_blank" class="px-4 py-2 bg-white text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition">
+            View Changelog
+        </a>
+    </div>
+</div>
+<?php endif; ?>
+
+<?php if (!empty($updateInfo['announcement'])): ?>
+<!-- Announcement Banner -->
+<div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+    <div class="flex items-start">
+        <svg class="w-5 h-5 text-amber-500 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/>
+        </svg>
+        <p class="text-amber-800"><?= e($updateInfo['announcement']) ?></p>
+    </div>
+</div>
+<?php endif; ?>
+
+<!-- Version Badge -->
+<div class="flex justify-end mb-2">
+    <span class="text-xs text-neutral-400">Pixly v<?= e($updateInfo['current_version'] ?? '1.0.0') ?></span>
+</div>
+
 <!-- Stats Grid -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
     <div class="bg-white rounded-lg shadow p-6">

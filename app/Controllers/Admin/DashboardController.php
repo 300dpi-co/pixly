@@ -18,10 +18,10 @@ class DashboardController extends Controller
      */
     public function index(): Response
     {
-        // Silent phone-home check (runs in background, never fails)
-        $this->performUpdateCheck();
-
         $db = $this->db();
+
+        // Get update info (silent, never fails)
+        $updateInfo = $this->getUpdateInfo();
 
         // Get stats
         $stats = [
@@ -55,20 +55,30 @@ class DashboardController extends Controller
             'stats' => $stats,
             'recentImages' => $recentImages,
             'recentUsers' => $recentUsers,
+            'updateInfo' => $updateInfo,
         ], 'admin');
     }
 
     /**
-     * Perform silent update check
+     * Perform silent update check and return update info
      * Never throws, never affects page load
      */
-    private function performUpdateCheck(): void
+    private function getUpdateInfo(): array
     {
         try {
             $checker = new UpdateChecker();
             $checker->silentCheck();
+
+            return [
+                'available' => $checker->hasUpdate(),
+                'latest_version' => $checker->getLatestVersion(),
+                'current_version' => file_exists(ROOT_PATH . '/VERSION')
+                    ? trim(file_get_contents(ROOT_PATH . '/VERSION'))
+                    : '1.0.0',
+                'announcement' => $checker->getAnnouncement(),
+            ];
         } catch (\Throwable $e) {
-            // Silently ignore - this should never affect the dashboard
+            return ['available' => false];
         }
     }
 }
