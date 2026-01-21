@@ -12,7 +12,7 @@ declare(strict_types=1);
 // Define base paths
 define('ROOT_PATH', dirname(__DIR__));
 define('APP_PATH', __DIR__);
-define('PUBLIC_PATH', ROOT_PATH . '/public_html');
+define('PUBLIC_PATH', ROOT_PATH); // Web root is now repo root
 define('STORAGE_PATH', ROOT_PATH . '/storage');
 define('CONFIG_PATH', APP_PATH . '/Config');
 define('VIEWS_PATH', APP_PATH . '/Views');

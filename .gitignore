@@ -29,15 +29,15 @@ storage/installed.lock
 !storage/logs/.gitkeep
 !storage/cache/.gitkeep
 !storage/sessions/.gitkeep
-public_html/cache/*
-!public_html/cache/.gitkeep
+cache/*
+!cache/.gitkeep
 
 # Uploads (user content)
-public_html/uploads/*
-!public_html/uploads/.gitkeep
-!public_html/uploads/images/.gitkeep
-!public_html/uploads/avatars/.gitkeep
-!public_html/uploads/branding/.gitkeep
+uploads/*
+!uploads/.gitkeep
+!uploads/images/.gitkeep
+!uploads/avatars/.gitkeep
+!uploads/branding/.gitkeep
 
 # IDE & OS
 .idea/

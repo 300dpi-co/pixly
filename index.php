@@ -9,7 +9,7 @@ declare(strict_types=1);
  */
 
 // Early install check - before loading anything else
-$rootPath = dirname(__DIR__);
+$rootPath = __DIR__;
 $installedLock = $rootPath . '/storage/installed.lock';
 $databaseConfig = $rootPath . '/app/Config/database.php';
 $requestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
@@ -23,7 +23,7 @@ if (!file_exists($installedLock) || !file_exists($databaseConfig)) {
 }
 
 // Bootstrap the application
-$app = require_once dirname(__DIR__) . '/app/bootstrap.php';
+$app = require_once __DIR__ . '/app/bootstrap.php';
 
 // Load routes
 $router = $app->getRouter();
