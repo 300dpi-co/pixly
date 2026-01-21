@@ -1,0 +1,36 @@
+# robots.txt for FWP Image Gallery
+
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: http://fwp.local/sitemap.xml
+Sitemap: http://fwp.local/sitemap-images.xml
+
+# Disallow admin area
+Disallow: /admin/
+
+# Disallow API endpoints
+Disallow: /api/
+
+# Disallow auth pages from indexing
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+
+# Disallow user-specific pages
+Disallow: /favorites
+Disallow: /profile
+
+# Disallow cache and upload originals
+Disallow: /cache/
+Disallow: /uploads/original/
+
+# Allow thumbnail and optimized images
+Allow: /uploads/thumbnails/
+Allow: /uploads/medium/
+Allow: /uploads/large/
+
+# Crawl delay for polite crawling
+Crawl-delay: 1

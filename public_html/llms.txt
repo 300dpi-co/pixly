@@ -1,0 +1,36 @@
+# FWP Image Gallery - llms.txt
+
+> FWP Image Gallery is a curated collection of images organized by categories and tags, with AI-powered metadata generation for SEO optimization.
+
+## Overview
+
+This is an image gallery website featuring:
+- High-quality images across multiple categories (Nature, Technology, Art, Travel, People, Animals, Food, Abstract)
+- AI-generated metadata including titles, descriptions, and tags
+- User features: favorites, comments, profiles
+- Trending content based on popularity metrics
+
+## Content Structure
+
+- /gallery - Browse all published images
+- /trending - View trending images by time period
+- /category/{name} - Browse images by category
+- /tag/{name} - Browse images by tag
+- /image/{slug} - View individual image with metadata
+- /search - Search images by keywords
+
+## API Endpoints
+
+Public JSON API available at:
+- GET /api/images - List images with pagination
+- GET /api/images/{slug} - Get single image details
+- GET /api/search?q={query} - Search images
+
+## Sitemaps
+
+- /sitemap.xml - Main sitemap
+- /sitemap-images.xml - Image sitemap with image metadata
+
+## Contact
+
+For inquiries about content licensing or API access, please contact the site administrator.

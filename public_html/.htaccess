@@ -1,0 +1,99 @@
+# FWP Image Gallery - Apache Configuration
+
+# Enable rewrite engine
+RewriteEngine On
+
+# Set base directory
+RewriteBase /
+
+# Redirect to HTTPS (uncomment in production)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Remove trailing slashes (except for directories)
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)/$ /$1 [L,R=301]
+
+# Handle front controller
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+# Prevent directory browsing
+Options -Indexes
+
+# Block access to sensitive files
+<FilesMatch "\.(env|log|sql|sh|md|json|lock|yml|yaml|ini|bak|old)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Block access to hidden files
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Security headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+</IfModule>
+
+# Enable compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json application/xml
+</IfModule>
+
+# Cache control for static assets
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType font/woff "access plus 1 year"
+</IfModule>
+
+# Set default charset
+AddDefaultCharset UTF-8
+
+# Prevent script execution in uploads
+<IfModule mod_rewrite.c>
+    RewriteRule ^uploads/.*\.php$ - [F,L]
+</IfModule>
+
+# =============================================
+# WebP Auto-Serve Rules
+# Automatically serves WebP images when:
+# 1. Browser supports WebP (Accept: image/webp)
+# 2. WebP version exists on disk
+# =============================================
+<IfModule mod_rewrite.c>
+    # Check if browser accepts WebP
+    RewriteCond %{HTTP_ACCEPT} image/webp
+
+    # Check if WebP version exists for JPG/JPEG files
+    RewriteCond %{REQUEST_URI} ^/uploads/(.+)\.(jpe?g|png)$
+    RewriteCond %{DOCUMENT_ROOT}/uploads/$1.webp -f
+    RewriteRule ^uploads/(.+)\.(jpe?g|png)$ /uploads/$1.webp [T=image/webp,L]
+</IfModule>
+
+# Add proper MIME type and Vary header for WebP
+<IfModule mod_headers.c>
+    <FilesMatch "\.(jpe?g|png)$">
+        Header append Vary Accept
+    </FilesMatch>
+</IfModule>
+
+# Ensure WebP MIME type is set
+<IfModule mod_mime.c>
+    AddType image/webp .webp
+</IfModule>

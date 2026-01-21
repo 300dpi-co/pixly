@@ -1,0 +1,41 @@
+# Dependencies
+/vendor/
+/node_modules/
+
+# Environment & Config
+.env
+.env.*
+app/Config/database.php
+
+# Storage & Cache
+storage/logs/*
+storage/cache/*
+storage/sessions/*
+!storage/logs/.gitkeep
+!storage/cache/.gitkeep
+!storage/sessions/.gitkeep
+public_html/cache/*
+!public_html/cache/.gitkeep
+
+# Uploads (user content)
+public_html/uploads/*
+!public_html/uploads/.gitkeep
+!public_html/uploads/branding/.gitkeep
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Debug & Testing
+*.log
+phpunit.xml
+.phpunit.result.cache
+coverage/
+
+# Build artifacts
+*.map
+*.compiled.*
