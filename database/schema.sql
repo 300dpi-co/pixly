@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS images (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     uuid CHAR(36) NOT NULL UNIQUE,
     user_id INT UNSIGNED NULL,
+    uploaded_by INT UNSIGNED NULL,
 
     -- File information
     original_filename VARCHAR(255) NOT NULL,
