@@ -1,12 +1,6 @@
 -- FWP Image Gallery Database Schema
 -- Run this file to create all tables
-
--- Create database if not exists
-CREATE DATABASE IF NOT EXISTS fwp_gallery
-    CHARACTER SET utf8mb4
-    COLLATE utf8mb4_unicode_ci;
-
-USE fwp_gallery;
+-- Note: Database is created by the installation wizard
 
 -- =====================================================
 -- Users & Authentication
