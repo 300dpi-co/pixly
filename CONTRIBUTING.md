@@ -2,6 +2,18 @@
 
 Thank you for your interest in contributing to Pixly! This document provides guidelines for contributing.
 
+## Contributor License Agreement (CLA)
+
+**Important:** Before we can accept your contribution, you must sign our [Contributor License Agreement](CLA.md).
+
+**Why a CLA?**
+
+Pixly uses dual licensing (AGPL-3.0 + Commercial). The CLA grants us the rights to include your contribution in both versions. Without it, we legally cannot accept your code.
+
+**How to sign:**
+
+When you submit your first pull request, the CLA Assistant bot will automatically ask you to sign. It's a one-time process.
+
 ## Code of Conduct
 
 By participating in this project, you agree to maintain a respectful and inclusive environment for everyone.
@@ -10,7 +22,7 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 ### Reporting Bugs
 
-1. Check if the bug has already been reported in [Issues](https://github.com/yourusername/pixly/issues)
+1. Check if the bug has already been reported in [Issues](https://github.com/300dpi-co/pixly/issues)
 2. If not, create a new issue with:
    - Clear, descriptive title
    - Steps to reproduce
@@ -39,7 +51,7 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 1. Clone your fork:
    ```bash
-   git clone https://github.com/yourusername/pixly.git
+   git clone https://github.com/300dpi-co/pixly.git
    cd pixly
    ```
 
