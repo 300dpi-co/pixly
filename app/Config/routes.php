@@ -224,6 +224,9 @@ $router->group(['prefix' => 'admin', 'middleware' => ['auth', 'admin']], functio
     $router->post('/ai/clear-failed', 'App\Controllers\Admin\AIController@clearFailed', ['csrf']);
     $router->post('/ai/retry-failed', 'App\Controllers\Admin\AIController@retryFailed', ['csrf']);
 
+    // System
+    $router->post('/system/update', 'App\Controllers\Admin\SystemController@update', ['csrf']);
+
     // Trends & Analytics
     $router->get('/trends', 'App\Controllers\Admin\TrendsController@index');
     $router->get('/analytics', 'App\Controllers\Admin\AnalyticsController@index');

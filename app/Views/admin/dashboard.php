@@ -11,11 +11,53 @@
                 <p class="text-sm text-blue-100">Version <?= e($updateInfo['latest_version']) ?> is available. You're running <?= e($updateInfo['current_version']) ?>.</p>
             </div>
         </div>
-        <a href="https://github.com/300dpi-co/pixly/releases" target="_blank" class="px-4 py-2 bg-white text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition">
-            View Changelog
-        </a>
+        <div class="flex items-center gap-3">
+            <a href="https://github.com/300dpi-co/pixly/releases" target="_blank" class="px-4 py-2 bg-white/20 text-white rounded-lg font-medium hover:bg-white/30 transition">
+                Changelog
+            </a>
+            <button onclick="performUpdate()" id="updateBtn" class="px-4 py-2 bg-white text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Update Now
+            </button>
+        </div>
     </div>
 </div>
+<script>
+function performUpdate() {
+    if (!confirm('Update to version <?= e($updateInfo['latest_version']) ?>? This will download and install the latest version.')) {
+        return;
+    }
+    const btn = document.getElementById('updateBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<svg class="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Updating...';
+
+    fetch('<?= $view->url('/admin/system/update') ?>', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '<?= csrf_token() ?>',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert('Update successful! The page will now reload.');
+            window.location.reload();
+        } else {
+            alert('Update failed: ' + (data.error || 'Unknown error'));
+            btn.disabled = false;
+            btn.innerHTML = '<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Update Now';
+        }
+    })
+    .catch(err => {
+        alert('Update failed: ' + err.message);
+        btn.disabled = false;
+        btn.innerHTML = '<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Update Now';
+    });
+}
+</script>
 <?php endif; ?>
 
 <?php if (!empty($updateInfo['announcement'])): ?>
