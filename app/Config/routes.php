@@ -175,6 +175,8 @@ $router->group(['prefix' => 'admin', 'middleware' => ['auth', 'admin']], functio
     $router->post('/images/{id}', 'App\Controllers\Admin\ImageController@update', ['csrf']);
     $router->post('/images/{id}/delete', 'App\Controllers\Admin\ImageController@destroy', ['csrf']);
     $router->delete('/images/{id}', 'App\Controllers\Admin\ImageController@destroy', ['csrf']);
+    $router->post('/images/{id}/analyze', 'App\Controllers\Admin\ImageController@analyze', ['csrf']);
+    $router->post('/images/{id}/auto-fill', 'App\Controllers\Admin\ImageController@autoFill', ['csrf']);
 
     // Categories
     $router->get('/categories', 'App\Controllers\Admin\CategoryController@index');

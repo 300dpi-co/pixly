@@ -7,6 +7,7 @@ namespace App\Controllers\Admin;
 use App\Core\Controller;
 use App\Core\Response;
 use App\Services\ImageProcessor;
+use App\Services\ClaudeAIService;
 
 /**
  * Admin Image Controller
@@ -405,6 +406,200 @@ class ImageController extends Controller
 
             if ($counter > 1000) {
                 return $baseSlug . '-' . substr(bin2hex(random_bytes(4)), 0, 8);
+            }
+        }
+    }
+
+    /**
+     * Analyze image with Claude AI
+     * Returns generated metadata (title, description, tags, etc.)
+     */
+    public function analyze(string|int $id): Response
+    {
+        $id = (int) $id;
+        $db = $this->db();
+
+        $image = $db->fetch("SELECT * FROM images WHERE id = :id", ['id' => $id]);
+
+        if (!$image) {
+            return $this->json(['error' => 'Image not found'], 404);
+        }
+
+        // Get the image path
+        $imagePath = PUBLIC_PATH . '/' . $image['storage_path'];
+
+        if (!file_exists($imagePath)) {
+            // Try thumbnail
+            $imagePath = PUBLIC_PATH . '/' . $image['thumbnail_path'];
+        }
+
+        if (!file_exists($imagePath)) {
+            return $this->json(['error' => 'Image file not found'], 404);
+        }
+
+        try {
+            $claude = new ClaudeAIService();
+
+            if (!$claude->isConfigured()) {
+                return $this->json([
+                    'error' => 'Claude AI not configured. Please add your API key in Settings.',
+                ], 400);
+            }
+
+            // Get existing categories for context
+            $categories = $db->fetchAll(
+                "SELECT id, name FROM categories WHERE is_active = 1 ORDER BY name"
+            );
+
+            // Analyze the image
+            $metadata = $claude->analyzeImage($imagePath, $categories);
+
+            return $this->json([
+                'success' => true,
+                'metadata' => $metadata,
+            ]);
+
+        } catch (\Throwable $e) {
+            return $this->json([
+                'error' => 'AI analysis failed: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Auto-fill image with AI-generated metadata and optionally publish
+     */
+    public function autoFill(string|int $id): Response
+    {
+        $id = (int) $id;
+        $db = $this->db();
+
+        $image = $db->fetch("SELECT * FROM images WHERE id = :id", ['id' => $id]);
+
+        if (!$image) {
+            return $this->json(['error' => 'Image not found'], 404);
+        }
+
+        // Get the image path
+        $imagePath = PUBLIC_PATH . '/' . $image['storage_path'];
+
+        if (!file_exists($imagePath)) {
+            $imagePath = PUBLIC_PATH . '/' . $image['thumbnail_path'];
+        }
+
+        if (!file_exists($imagePath)) {
+            return $this->json(['error' => 'Image file not found'], 404);
+        }
+
+        try {
+            $claude = new ClaudeAIService();
+
+            if (!$claude->isConfigured()) {
+                return $this->json([
+                    'error' => 'Claude AI not configured',
+                ], 400);
+            }
+
+            // Get existing categories
+            $categories = $db->fetchAll(
+                "SELECT id, name FROM categories WHERE is_active = 1 ORDER BY name"
+            );
+
+            // Analyze the image
+            $metadata = $claude->analyzeImage($imagePath, $categories);
+
+            // Update the image with generated metadata
+            $updateData = [
+                'title' => $metadata['title'] ?: $image['title'],
+                'description' => $metadata['description'] ?: $image['description'],
+                'alt_text' => $metadata['alt_text'] ?: $image['alt_text'],
+                'caption' => $metadata['caption'] ?: $image['caption'],
+                'ai_description' => $metadata['description'],
+                'ai_tags' => json_encode($metadata['tags']),
+                'dominant_color' => $metadata['dominant_color'] ?: $image['dominant_color'],
+                'color_palette' => json_encode($metadata['colors']),
+                'ai_processed_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
+            ];
+
+            // Generate slug if title changed and current slug is generic
+            if ($metadata['title'] && (empty($image['title']) || str_starts_with($image['slug'], 'image-'))) {
+                $updateData['slug'] = $this->generateUniqueSlug($metadata['title'], $id);
+            }
+
+            $db->update('images', $updateData, 'id = :id', ['id' => $id]);
+
+            // Sync tags
+            if (!empty($metadata['tags'])) {
+                $this->syncTags($id, implode(', ', $metadata['tags']));
+            }
+
+            // Sync categories
+            if (!empty($metadata['categories'])) {
+                $this->syncCategories($id, $metadata['categories'], $categories);
+            }
+
+            // Check if auto-publish requested
+            $autoPublish = $this->request->input('publish') === '1';
+            if ($autoPublish) {
+                $db->update('images', [
+                    'status' => 'published',
+                    'moderation_status' => 'approved',
+                    'published_at' => date('Y-m-d H:i:s'),
+                ], 'id = :id', ['id' => $id]);
+            }
+
+            return $this->json([
+                'success' => true,
+                'message' => 'Image metadata updated with AI',
+                'metadata' => $metadata,
+                'published' => $autoPublish,
+            ]);
+
+        } catch (\Throwable $e) {
+            return $this->json([
+                'error' => 'Auto-fill failed: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Sync categories for an image
+     */
+    private function syncCategories(int $imageId, array $categoryNames, array $existingCategories): void
+    {
+        $db = $this->db();
+
+        // Build lookup map
+        $categoryMap = [];
+        foreach ($existingCategories as $cat) {
+            $categoryMap[strtolower($cat['name'])] = $cat['id'];
+        }
+
+        // Delete existing category links
+        $db->execute("DELETE FROM image_categories WHERE image_id = :id", ['id' => $imageId]);
+
+        $isPrimary = true;
+        foreach ($categoryNames as $categoryName) {
+            $categoryName = trim($categoryName);
+            $key = strtolower($categoryName);
+
+            if (isset($categoryMap[$key])) {
+                $categoryId = $categoryMap[$key];
+
+                $db->insert('image_categories', [
+                    'image_id' => $imageId,
+                    'category_id' => $categoryId,
+                    'is_primary' => $isPrimary ? 1 : 0,
+                ]);
+
+                // Update category image count
+                $db->execute(
+                    "UPDATE categories SET image_count = image_count + 1 WHERE id = :id",
+                    ['id' => $categoryId]
+                );
+
+                $isPrimary = false;
             }
         }
     }
