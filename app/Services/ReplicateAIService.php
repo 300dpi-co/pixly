@@ -376,7 +376,14 @@ Return ONLY the JSON object, nothing else.";
                 $result = $db->fetch(
                     "SELECT setting_value FROM settings WHERE setting_key = 'replicate_api_key'"
                 );
-                if ($result && !empty($result['setting_value'])) {
+
+                // Auto-create setting if it doesn't exist
+                if (!$result) {
+                    $this->ensureSettingsExist($db);
+                    return '';
+                }
+
+                if (!empty($result['setting_value'])) {
                     return $result['setting_value'];
                 }
             }
@@ -390,6 +397,40 @@ Return ONLY the JSON object, nothing else.";
         }
 
         return '';
+    }
+
+    /**
+     * Auto-create settings if they don't exist
+     */
+    private function ensureSettingsExist($db): void
+    {
+        try {
+            // Check and create ai_provider setting
+            $exists = $db->fetch("SELECT 1 FROM settings WHERE setting_key = 'ai_provider'");
+            if (!$exists) {
+                $db->insert('settings', [
+                    'setting_key' => 'ai_provider',
+                    'setting_value' => 'replicate',
+                    'setting_type' => 'select',
+                    'description' => 'AI provider for image analysis (claude or replicate)',
+                    'is_public' => 0,
+                ]);
+            }
+
+            // Check and create replicate_api_key setting
+            $exists = $db->fetch("SELECT 1 FROM settings WHERE setting_key = 'replicate_api_key'");
+            if (!$exists) {
+                $db->insert('settings', [
+                    'setting_key' => 'replicate_api_key',
+                    'setting_value' => '',
+                    'setting_type' => 'encrypted',
+                    'description' => 'Replicate API key for LLaVA image analysis',
+                    'is_public' => 0,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            // Silently fail - settings will be created manually
+        }
     }
 
     /**
