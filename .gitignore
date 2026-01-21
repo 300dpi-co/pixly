@@ -5,12 +5,27 @@
 # Environment & Config
 .env
 .env.*
+.env.local
+.env.*.local
 app/Config/database.php
+
+# Claude AI context (local development)
+.claude/
+
+# Internal development files
+CLAUDE.md
+PROJECT.md
+CRON_JOBS.md
+future-setup.md
+run-migration.php
+run_migration.php
 
 # Storage & Cache
 storage/logs/*
 storage/cache/*
 storage/sessions/*
+storage/*.lock
+storage/installed.lock
 !storage/logs/.gitkeep
 !storage/cache/.gitkeep
 !storage/sessions/.gitkeep
@@ -20,6 +35,8 @@ public_html/cache/*
 # Uploads (user content)
 public_html/uploads/*
 !public_html/uploads/.gitkeep
+!public_html/uploads/images/.gitkeep
+!public_html/uploads/avatars/.gitkeep
 !public_html/uploads/branding/.gitkeep
 
 # IDE & OS
@@ -27,6 +44,7 @@ public_html/uploads/*
 .vscode/
 *.swp
 *.swo
+*~
 .DS_Store
 Thumbs.db
 
