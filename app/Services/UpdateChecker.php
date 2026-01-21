@@ -15,7 +15,7 @@ class UpdateChecker
 {
     private const GITHUB_STATUS_URL = 'https://raw.githubusercontent.com/300dpi-co/pixly/main/remote/status.json';
     private const CACHE_KEY = 'update_check';
-    private const CACHE_TTL = 86400; // 24 hours
+    private const CACHE_TTL = 3600; // 1 hour - check frequently for updates
     private const TIMEOUT = 5; // seconds
 
     private string $currentVersion = '1.0.0';

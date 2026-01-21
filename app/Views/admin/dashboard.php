@@ -1,6 +1,5 @@
-<?php if (!empty($updateInfo['available'])): ?>
-<!-- Update Available Banner -->
-<div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg shadow-lg p-4 mb-6">
+<!-- Dynamic Update Banner (inserted by JavaScript) -->
+<div id="updateBanner" class="hidden bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg shadow-lg p-4 mb-6">
     <div class="flex items-center justify-between">
         <div class="flex items-center text-white">
             <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -8,7 +7,7 @@
             </svg>
             <div>
                 <p class="font-semibold">Update Available!</p>
-                <p class="text-sm text-blue-100">Version <?= e($updateInfo['latest_version']) ?> is available. You're running <?= e($updateInfo['current_version']) ?>.</p>
+                <p class="text-sm text-blue-100">Version <span id="latestVersionText"></span> is available. You're running <span id="currentVersionText"></span>.</p>
             </div>
         </div>
         <div class="flex items-center gap-3">
@@ -24,19 +23,85 @@
         </div>
     </div>
 </div>
+
+<!-- Dynamic Announcement Banner (inserted by JavaScript) -->
+<div id="announcementBanner" class="hidden bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+    <div class="flex items-start">
+        <svg class="w-5 h-5 text-amber-500 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/>
+        </svg>
+        <p id="announcementText" class="text-amber-800"></p>
+    </div>
+</div>
+
 <script>
+// Configuration
+const GITHUB_STATUS_URL = 'https://raw.githubusercontent.com/300dpi-co/pixly/main/remote/status.json';
+const CURRENT_VERSION = '<?= e($updateInfo['current_version'] ?? '1.0.0') ?>';
+const UPDATE_ENDPOINT = '<?= $view->url('/admin/system/update') ?>';
+const CSRF_TOKEN = '<?= csrf_token() ?>';
+
+// Compare semantic versions: returns true if v1 > v2
+function isNewerVersion(v1, v2) {
+    const parts1 = v1.split('.').map(Number);
+    const parts2 = v2.split('.').map(Number);
+    for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+        const p1 = parts1[i] || 0;
+        const p2 = parts2[i] || 0;
+        if (p1 > p2) return true;
+        if (p1 < p2) return false;
+    }
+    return false;
+}
+
+// Check for updates directly from GitHub (bypasses PHP cache)
+async function checkUpdateFromGitHub() {
+    try {
+        const response = await fetch(GITHUB_STATUS_URL + '?t=' + Date.now(), {
+            cache: 'no-store'
+        });
+        if (!response.ok) return;
+
+        const status = await response.json();
+
+        // Show announcement if present
+        if (status.announcement || status.message) {
+            const announcementBanner = document.getElementById('announcementBanner');
+            const announcementText = document.getElementById('announcementText');
+            announcementText.textContent = status.announcement || status.message;
+            announcementBanner.classList.remove('hidden');
+        }
+
+        // Check for update
+        if (status.latest_version && isNewerVersion(status.latest_version, CURRENT_VERSION)) {
+            const updateBanner = document.getElementById('updateBanner');
+            document.getElementById('latestVersionText').textContent = status.latest_version;
+            document.getElementById('currentVersionText').textContent = CURRENT_VERSION;
+            updateBanner.classList.remove('hidden');
+
+            // Store for update function
+            window.latestVersion = status.latest_version;
+        }
+    } catch (e) {
+        // Silently fail - don't bother users if GitHub is unreachable
+        console.log('Update check skipped:', e.message);
+    }
+}
+
+// Perform the update
 function performUpdate() {
-    if (!confirm('Update to version <?= e($updateInfo['latest_version']) ?>? This will download and install the latest version.')) {
+    const version = window.latestVersion || 'latest';
+    if (!confirm('Update to version ' + version + '? This will download and install the latest version.')) {
         return;
     }
     const btn = document.getElementById('updateBtn');
     btn.disabled = true;
     btn.innerHTML = '<svg class="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Updating...';
 
-    fetch('<?= $view->url('/admin/system/update') ?>', {
+    fetch(UPDATE_ENDPOINT, {
         method: 'POST',
         headers: {
-            'X-CSRF-TOKEN': '<?= csrf_token() ?>',
+            'X-CSRF-TOKEN': CSRF_TOKEN,
             'Content-Type': 'application/json'
         }
     })
@@ -57,62 +122,15 @@ function performUpdate() {
         btn.innerHTML = '<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Update Now';
     });
 }
-</script>
-<?php endif; ?>
 
-<?php if (!empty($updateInfo['announcement'])): ?>
-<!-- Announcement Banner -->
-<div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-    <div class="flex items-start">
-        <svg class="w-5 h-5 text-amber-500 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/>
-        </svg>
-        <p class="text-amber-800"><?= e($updateInfo['announcement']) ?></p>
-    </div>
-</div>
-<?php endif; ?>
+// Auto-check on page load
+document.addEventListener('DOMContentLoaded', checkUpdateFromGitHub);
+</script>
 
 <!-- Version Badge -->
 <div class="flex justify-end items-center gap-3 mb-2">
-    <button onclick="checkForUpdates()" id="checkUpdateBtn" class="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1">
-        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-        </svg>
-        Check for Updates
-    </button>
     <span class="text-xs text-neutral-400">Pixly v<?= e($updateInfo['current_version'] ?? '1.0.0') ?></span>
 </div>
-<script>
-function checkForUpdates() {
-    const btn = document.getElementById('checkUpdateBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Checking...';
-
-    fetch('<?= $view->url('/admin/system/check-update') ?>', {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': '<?= csrf_token() ?>',
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.has_update) {
-            alert('Update available! Version ' + data.latest_version + ' is ready. Refreshing page...');
-            window.location.reload();
-        } else {
-            alert(data.message || 'You are running the latest version');
-        }
-        btn.disabled = false;
-        btn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Check for Updates';
-    })
-    .catch(err => {
-        alert('Failed to check for updates: ' + err.message);
-        btn.disabled = false;
-        btn.innerHTML = '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Check for Updates';
-    });
-}
-</script>
 
 <!-- Stats Grid -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
