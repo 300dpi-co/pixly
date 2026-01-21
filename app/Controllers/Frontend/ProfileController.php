@@ -214,7 +214,7 @@ class ProfileController extends Controller
         // Generate filename and path
         $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
         $filename = 'avatar_' . $user['id'] . '_' . time() . '.' . $ext;
-        $uploadDir = ROOT_PATH . '/public_html/uploads/avatars/';
+        $uploadDir = ROOT_PATH . '/uploads/avatars/';
         $uploadPath = $uploadDir . $filename;
 
         // Create directory if not exists
@@ -225,7 +225,7 @@ class ProfileController extends Controller
         // Delete old avatar if exists
         $oldAvatar = $db->fetch("SELECT avatar_path FROM users WHERE id = :id", ['id' => $user['id']]);
         if ($oldAvatar && $oldAvatar['avatar_path']) {
-            $oldPath = ROOT_PATH . '/public_html/uploads/' . $oldAvatar['avatar_path'];
+            $oldPath = ROOT_PATH . '/uploads/' . $oldAvatar['avatar_path'];
             if (file_exists($oldPath)) {
                 unlink($oldPath);
             }

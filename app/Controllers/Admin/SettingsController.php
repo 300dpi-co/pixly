@@ -290,7 +290,7 @@ class SettingsController extends Controller
         // Generate filename
         $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
         $filename = 'logo_' . time() . '.' . $ext;
-        $uploadDir = ROOT_PATH . '/public_html/uploads/branding/';
+        $uploadDir = ROOT_PATH . '/uploads/branding/';
         $uploadPath = $uploadDir . $filename;
 
         // Create directory if not exists
@@ -302,7 +302,7 @@ class SettingsController extends Controller
         $db = $this->db();
         $oldLogo = $db->fetch("SELECT setting_value FROM settings WHERE setting_key = 'site_logo'");
         if ($oldLogo && $oldLogo['setting_value']) {
-            $oldPath = ROOT_PATH . '/public_html/uploads/' . $oldLogo['setting_value'];
+            $oldPath = ROOT_PATH . '/uploads/' . $oldLogo['setting_value'];
             if (file_exists($oldPath)) {
                 unlink($oldPath);
             }
@@ -346,7 +346,7 @@ class SettingsController extends Controller
         $logo = $db->fetch("SELECT setting_value FROM settings WHERE setting_key = 'site_logo'");
 
         if ($logo && $logo['setting_value']) {
-            $logoPath = ROOT_PATH . '/public_html/uploads/' . $logo['setting_value'];
+            $logoPath = ROOT_PATH . '/uploads/' . $logo['setting_value'];
             if (file_exists($logoPath)) {
                 unlink($logoPath);
             }

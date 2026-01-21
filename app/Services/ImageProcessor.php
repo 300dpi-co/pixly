@@ -28,7 +28,7 @@ class ImageProcessor
 
     public function __construct(?string $uploadPath = null)
     {
-        $this->uploadPath = $uploadPath ?? \ROOT_PATH . '/public_html/uploads';
+        $this->uploadPath = $uploadPath ?? \ROOT_PATH . '/uploads';
     }
 
     /**

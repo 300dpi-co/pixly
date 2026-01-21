@@ -449,7 +449,7 @@ class BlogController extends Controller
         // Generate filename
         $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
         $filename = 'blog_' . uniqid() . '_' . time() . '.' . $ext;
-        $uploadDir = ROOT_PATH . '/public_html/uploads/blog/';
+        $uploadDir = ROOT_PATH . '/uploads/blog/';
         $uploadPath = $uploadDir . $filename;
 
         // Create directory if not exists
@@ -469,7 +469,7 @@ class BlogController extends Controller
      */
     private function deleteFeaturedImage(string $path): void
     {
-        $fullPath = ROOT_PATH . '/public_html/uploads/' . $path;
+        $fullPath = ROOT_PATH . '/uploads/' . $path;
         if (file_exists($fullPath)) {
             unlink($fullPath);
         }
