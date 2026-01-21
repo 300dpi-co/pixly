@@ -42,9 +42,14 @@ return [
     */
     'app' => [
         'name' => 'Pixly',
-        'url' => 'http://fwp.local',
-        'env' => 'development', // development, staging, production
-        'debug' => true,
+        'url' => (function() {
+            // Auto-detect URL from request
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            $host = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? 'localhost';
+            return "{$protocol}://{$host}";
+        })(),
+        'env' => 'production', // development, staging, production
+        'debug' => false,
         'timezone' => 'UTC',
         'locale' => 'en',
     ],

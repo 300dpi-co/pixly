@@ -1,11 +1,11 @@
-# robots.txt for FWP Image Gallery
+# robots.txt for Pixly Image Gallery
 
 User-agent: *
 Allow: /
 
-# Sitemaps
-Sitemap: http://fwp.local/sitemap.xml
-Sitemap: http://fwp.local/sitemap-images.xml
+# Sitemaps - Update these URLs after installation
+# Sitemap: https://yourdomain.com/sitemap.xml
+# Sitemap: https://yourdomain.com/sitemap-images.xml
 
 # Disallow admin area
 Disallow: /admin/
