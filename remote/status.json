@@ -6,5 +6,5 @@
     "message": null,
     "announcement": null,
     "min_php_version": "8.2.0",
-    "auto_update": true
+    "auto_update": false
 }
