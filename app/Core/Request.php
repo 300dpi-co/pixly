@@ -217,7 +217,7 @@ class Request
     /**
      * Get JSON body
      */
-    public function json(string $key = null, mixed $default = null): mixed
+    public function json(?string $key = null, mixed $default = null): mixed
     {
         if ($this->json === null) {
             $body = file_get_contents('php://input');
