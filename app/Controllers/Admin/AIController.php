@@ -23,6 +23,10 @@ class AIController extends Controller
     public function index(): Response
     {
         $db = $this->db();
+
+        // Ensure AI settings exist in database
+        $this->ensureAISettingsExist($db);
+
         $generator = new MetadataGenerator();
         $provider = $generator->getProvider();
 
@@ -216,5 +220,60 @@ class AIController extends Controller
         );
 
         return $this->redirectWithSuccess(url('/admin/ai'), 'Failed items queued for retry.');
+    }
+
+    /**
+     * Ensure all AI-related settings exist in database
+     */
+    private function ensureAISettingsExist($db): void
+    {
+        $requiredSettings = [
+            [
+                'setting_key' => 'ai_provider',
+                'setting_value' => 'replicate',
+                'setting_type' => 'string',
+                'description' => 'AI provider for image analysis (claude or replicate)',
+                'is_public' => 0,
+            ],
+            [
+                'setting_key' => 'replicate_api_key',
+                'setting_value' => '',
+                'setting_type' => 'encrypted',
+                'description' => 'Replicate API key for LLaVA image analysis',
+                'is_public' => 0,
+            ],
+            [
+                'setting_key' => 'claude_api_key',
+                'setting_value' => '',
+                'setting_type' => 'encrypted',
+                'description' => 'Claude API key for image analysis',
+                'is_public' => 0,
+            ],
+            [
+                'setting_key' => 'deepseek_api_key',
+                'setting_value' => '',
+                'setting_type' => 'encrypted',
+                'description' => 'DeepSeek API key',
+                'is_public' => 0,
+            ],
+            [
+                'setting_key' => 'deepinfra_api_key',
+                'setting_value' => '',
+                'setting_type' => 'encrypted',
+                'description' => 'DeepInfra API key',
+                'is_public' => 0,
+            ],
+        ];
+
+        foreach ($requiredSettings as $setting) {
+            $exists = $db->fetch(
+                "SELECT 1 FROM settings WHERE setting_key = :key",
+                ['key' => $setting['setting_key']]
+            );
+
+            if (!$exists) {
+                $db->insert('settings', $setting);
+            }
+        }
     }
 }
