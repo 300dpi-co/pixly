@@ -96,7 +96,7 @@ $heroImage = $featuredImages[0] ?? $trendingImages[0] ?? null;
             <a href="<?= $view->url('/image/' . $image['slug']) ?>"
                class="group relative rounded-3xl overflow-hidden <?= $index === 0 ? 'md:col-span-2 md:row-span-2' : '' ?>">
                 <div class="<?= $index === 0 ? 'aspect-square' : 'aspect-[4/5]' ?> bg-neutral-200 dark:bg-neutral-800">
-                    <img data-src="<?= e('/uploads/' . $thumbSrc) ?>"
+                    <img data-src="<?= e(uploads_url($thumbSrc)) ?>"
                          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 500'%3E%3Crect fill='%23374151' width='400' height='500'/%3E%3C/svg%3E"
                          alt="<?= e($image['alt_text'] ?: $image['title']) ?>"
                          class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
@@ -191,7 +191,7 @@ $heroImage = $featuredImages[0] ?? $trendingImages[0] ?? null;
         <a href="<?= $view->url('/image/' . $image['slug']) ?>"
            class="group flex-shrink-0 w-72 snap-start">
             <div class="aspect-[3/4] rounded-2xl overflow-hidden bg-neutral-200 dark:bg-neutral-800 mb-4">
-                <img data-src="<?= e('/uploads/' . $thumbSrc) ?>"
+                <img data-src="<?= e(uploads_url($thumbSrc)) ?>"
                      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 400'%3E%3Crect fill='%23374151' width='300' height='400'/%3E%3C/svg%3E"
                      alt="<?= e($image['alt_text'] ?: $image['title']) ?>"
                      class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">

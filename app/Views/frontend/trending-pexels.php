@@ -67,7 +67,7 @@
                     ?>
                     <a href="<?= $view->url('/image/' . $image['slug']) ?>" class="group relative block">
                         <div class="aspect-[4/5] bg-neutral-100 rounded-xl overflow-hidden">
-                            <img src="<?= e('/uploads/' . $thumbSrc) ?>"
+                            <img src="<?= e(uploads_url($thumbSrc)) ?>"
                                  alt="<?= e($image['alt_text'] ?: $image['title']) ?>"
                                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
 
@@ -134,7 +134,7 @@
                     ?>
                     <div class="break-inside-avoid group">
                         <a href="<?= $view->url('/image/' . $image['slug']) ?>" class="block relative rounded-lg overflow-hidden bg-neutral-100">
-                            <img src="<?= e('/uploads/' . $thumbSrc) ?>"
+                            <img src="<?= e(uploads_url($thumbSrc)) ?>"
                                  alt="<?= e($image['alt_text'] ?: $image['title']) ?>"
                                  class="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-300"
                                  loading="lazy">

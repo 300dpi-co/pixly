@@ -26,7 +26,7 @@
             <a href="<?= $view->url('/blog/' . $post['slug']) ?>" class="block">
                 <?php if ($post['featured_image']): ?>
                 <div class="aspect-video bg-neutral-200 dark:bg-neutral-700 overflow-hidden">
-                    <img src="/uploads/<?= e($post['featured_image']) ?>"
+                    <img src="<?= uploads_url(e($post['featured_image'])) ?>"
                          alt="<?= e($post['title']) ?>"
                          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
                 </div>

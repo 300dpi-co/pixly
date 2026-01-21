@@ -51,7 +51,7 @@
     <!-- Featured Image -->
     <?php if ($post->featured_image): ?>
     <figure class="mb-8 -mx-4 md:mx-0">
-        <img src="/uploads/<?= e($post->featured_image) ?>"
+        <img src="<?= uploads_url(e($post->featured_image)) ?>"
              alt="<?= e($post->featured_image_alt ?: $post->title) ?>"
              class="w-full rounded-xl md:rounded-2xl object-cover max-h-[500px]">
     </figure>
@@ -178,7 +178,7 @@
             <a href="/blog/<?= e($related->slug) ?>" class="group">
                 <div class="aspect-video rounded-lg overflow-hidden bg-neutral-200 dark:bg-neutral-700 mb-3">
                     <?php if ($related->featured_image): ?>
-                    <img src="/uploads/<?= e($related->featured_image) ?>" alt=""
+                    <img src="<?= uploads_url(e($related->featured_image)) ?>" alt=""
                          class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
                     <?php endif; ?>
                 </div>

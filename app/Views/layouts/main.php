@@ -770,7 +770,7 @@
                     $logoHeight = setting('logo_height', '40');
                     ?>
                     <?php if ($siteLogo): ?>
-                        <img src="/uploads/<?= e($siteLogo) ?>" alt="<?= e($siteName) ?>" style="height: <?= (int)$logoHeight ?>px;" class="object-contain">
+                        <img src="<?= uploads_url(e($siteLogo)) ?>" alt="<?= e($siteName) ?>" style="height: <?= (int)$logoHeight ?>px;" class="object-contain">
                     <?php else: ?>
                         <span class="text-xl font-bold text-primary-600"><?= e($siteName) ?></span>
                     <?php endif; ?>

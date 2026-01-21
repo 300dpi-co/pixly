@@ -31,7 +31,7 @@ $secondaryFeatured = array_slice($featuredImages ?: $trendingImages, 1, 2);
                 <?php foreach ($secondaryFeatured as $img): ?>
                 <?php $thumbSrc = $img['thumbnail_webp_path'] ?: $img['thumbnail_path']; ?>
                 <a href="<?= $view->url('/image/' . $img['slug']) ?>" class="relative flex-1 group overflow-hidden">
-                    <img src="<?= e('/uploads/' . $thumbSrc) ?>"
+                    <img src="<?= e(uploads_url($thumbSrc)) ?>"
                          alt="<?= e($img['alt_text'] ?: $img['title']) ?>"
                          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                     <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
@@ -92,7 +92,7 @@ $secondaryFeatured = array_slice($featuredImages ?: $trendingImages, 1, 2);
                     <a href="<?= $view->url('/image/' . $image['slug']) ?>" class="block break-inside-avoid group mb-4">
                         <article class="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 overflow-hidden hover:shadow-lg transition-shadow">
                             <div class="overflow-hidden">
-                                <img data-src="<?= e('/uploads/' . $thumbSrc) ?>"
+                                <img data-src="<?= e(uploads_url($thumbSrc)) ?>"
                                      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 400'%3E%3Crect fill='%23e5e7eb' width='300' height='400'/%3E%3C/svg%3E"
                                      alt="<?= e($image['alt_text'] ?: $image['title']) ?>"
                                      class="w-full group-hover:scale-105 transition-transform duration-500">
@@ -124,7 +124,7 @@ $secondaryFeatured = array_slice($featuredImages ?: $trendingImages, 1, 2);
                     <?php $thumbSrc = $image['thumbnail_webp_path'] ?: $image['thumbnail_path']; ?>
                     <a href="<?= $view->url('/image/' . $image['slug']) ?>" class="group">
                         <div class="aspect-square overflow-hidden bg-neutral-100 dark:bg-neutral-800">
-                            <img data-src="<?= e('/uploads/' . $thumbSrc) ?>"
+                            <img data-src="<?= e(uploads_url($thumbSrc)) ?>"
                                  src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 300'%3E%3Crect fill='%23e5e7eb' width='300' height='300'/%3E%3C/svg%3E"
                                  alt="<?= e($image['alt_text'] ?: $image['title']) ?>"
                                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">

@@ -43,7 +43,7 @@
                     <?php $thumbSrc = $image['thumbnail_webp_path'] ?: $image['thumbnail_path']; ?>
                     <div class="break-inside-avoid group">
                         <a href="<?= $view->url('/image/' . $image['slug']) ?>" class="block relative rounded-lg overflow-hidden bg-neutral-100">
-                            <img src="<?= e('/uploads/' . $thumbSrc) ?>"
+                            <img src="<?= e(uploads_url($thumbSrc)) ?>"
                                  alt="<?= e($image['alt_text'] ?: $image['title']) ?>"
                                  class="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-300"
                                  loading="lazy">

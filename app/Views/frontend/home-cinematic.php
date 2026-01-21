@@ -46,7 +46,7 @@
                     ?>
                     <a href="<?= $view->url('/image/' . $image['slug']) ?>" class="group block">
                         <div class="aspect-[4/5] bg-neutral-900 rounded overflow-hidden relative border border-white/5 group-hover:border-red-800/30 transition-all">
-                            <img data-src="<?= e('/uploads/' . $thumbSrc) ?>"
+                            <img data-src="<?= e(uploads_url($thumbSrc)) ?>"
                                  src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"
                                  alt="<?= e($image['alt_text'] ?: $image['title']) ?>"
                                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -88,7 +88,7 @@
                     ?>
                     <a href="<?= $view->url('/image/' . $image['slug']) ?>" class="group block">
                         <div class="aspect-[4/5] bg-neutral-900 rounded overflow-hidden relative border border-white/5 group-hover:border-red-800/30 transition-all">
-                            <img data-src="<?= e('/uploads/' . $thumbSrc) ?>"
+                            <img data-src="<?= e(uploads_url($thumbSrc)) ?>"
                                  src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"
                                  alt="<?= e($image['alt_text'] ?: $image['title']) ?>"
                                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"

@@ -30,7 +30,7 @@
                 <?php $thumbSrc = $image['thumbnail_webp_path'] ?: $image['thumbnail_path']; ?>
                 <a href="<?= $view->url('/image/' . $image['slug']) ?>" class="group block">
                     <div class="aspect-square bg-neutral-200 dark:bg-neutral-700 rounded-lg overflow-hidden relative">
-                        <img data-src="<?= e('/uploads/' . $thumbSrc) ?>"
+                        <img data-src="<?= e(uploads_url($thumbSrc)) ?>"
                              src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 300'%3E%3Crect fill='%23e5e7eb' width='300' height='300'/%3E%3C/svg%3E"
                              alt="<?= e($image['alt_text'] ?: $image['title']) ?>"
                              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">

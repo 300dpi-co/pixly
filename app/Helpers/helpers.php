@@ -486,6 +486,20 @@ if (!function_exists('social_links')) {
 // IMAGE HELPERS (WebP Support)
 // ============================================
 
+if (!function_exists('uploads_url')) {
+    /**
+     * Get URL for uploaded files (handles subdirectory installations)
+     *
+     * @param string $path Path relative to uploads directory
+     * @return string Full URL to the uploaded file
+     */
+    function uploads_url(string $path = ''): string
+    {
+        $path = ltrim($path, '/');
+        return url('uploads/' . $path);
+    }
+}
+
 if (!function_exists('browser_supports_webp')) {
     /**
      * Check if browser supports WebP based on Accept header
@@ -507,25 +521,19 @@ if (!function_exists('image_url')) {
     /**
      * Get the best image URL (WebP if supported, fallback otherwise)
      *
-     * @param string $path Original image path (relative to /uploads/)
+     * @param string $path Original image path (relative to uploads/)
      * @param string|null $webpPath WebP version path (if available)
-     * @param bool $absolute Return absolute URL
+     * @param bool $absolute Return absolute URL (ignored, always returns full URL now)
      * @return string
      */
     function image_url(string $path, ?string $webpPath = null, bool $absolute = false): string
     {
         // If WebP available and browser supports it, use WebP
         if ($webpPath && browser_supports_webp()) {
-            $url = '/uploads/' . $webpPath;
-        } else {
-            $url = '/uploads/' . $path;
+            return uploads_url($webpPath);
         }
 
-        if ($absolute) {
-            return rtrim(config('app.url', ''), '/') . $url;
-        }
-
-        return $url;
+        return uploads_url($path);
     }
 }
 
@@ -563,8 +571,8 @@ if (!function_exists('picture_tag')) {
             return '';
         }
 
-        $fallbackUrl = '/uploads/' . e($fallbackPath);
-        $webpUrl = $webpPath ? '/uploads/' . e($webpPath) : null;
+        $fallbackUrl = uploads_url(e($fallbackPath));
+        $webpUrl = $webpPath ? uploads_url(e($webpPath)) : null;
 
         // Build attributes
         $alt = e($attributes['alt'] ?? $image['alt_text'] ?? $image['title'] ?? '');
@@ -643,8 +651,8 @@ if (!function_exists('lazy_picture')) {
             return '';
         }
 
-        $fallbackUrl = '/uploads/' . e($fallbackPath);
-        $webpUrl = $webpPath ? '/uploads/' . e($webpPath) : null;
+        $fallbackUrl = uploads_url(e($fallbackPath));
+        $webpUrl = $webpPath ? uploads_url(e($webpPath)) : null;
 
         $alt = e($attributes['alt'] ?? $image['alt_text'] ?? $image['title'] ?? '');
         $class = trim('lazy ' . ($attributes['class'] ?? ''));
@@ -677,30 +685,30 @@ if (!function_exists('srcset_webp')) {
 
         // Thumbnail (300w)
         if (!empty($image['thumbnail_webp_path'])) {
-            $webpSet[] = '/uploads/' . $image['thumbnail_webp_path'] . ' 300w';
+            $webpSet[] = uploads_url($image['thumbnail_webp_path']) . ' 300w';
         }
         if (!empty($image['thumbnail_path'])) {
-            $fallbackSet[] = '/uploads/' . $image['thumbnail_path'] . ' 300w';
+            $fallbackSet[] = uploads_url($image['thumbnail_path']) . ' 300w';
         }
 
         // Medium (800w)
         if (!empty($image['medium_webp_path'])) {
-            $webpSet[] = '/uploads/' . $image['medium_webp_path'] . ' 800w';
+            $webpSet[] = uploads_url($image['medium_webp_path']) . ' 800w';
         } elseif (!empty($image['webp_path'])) {
-            $webpSet[] = '/uploads/' . $image['webp_path'] . ' 800w';
+            $webpSet[] = uploads_url($image['webp_path']) . ' 800w';
         }
         if (!empty($image['medium_path'])) {
-            $fallbackSet[] = '/uploads/' . $image['medium_path'] . ' 800w';
+            $fallbackSet[] = uploads_url($image['medium_path']) . ' 800w';
         }
 
         // Original/Large
         if (!empty($image['webp_path'])) {
             $width = $image['width'] ?? 1920;
-            $webpSet[] = '/uploads/' . $image['webp_path'] . ' ' . $width . 'w';
+            $webpSet[] = uploads_url($image['webp_path']) . ' ' . $width . 'w';
         }
         if (!empty($image['storage_path'])) {
             $width = $image['width'] ?? 1920;
-            $fallbackSet[] = '/uploads/' . $image['storage_path'] . ' ' . $width . 'w';
+            $fallbackSet[] = uploads_url($image['storage_path']) . ' ' . $width . 'w';
         }
 
         return [

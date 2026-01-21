@@ -1,6 +1,6 @@
 <?php
 $displayName = $user['display_name'] ?: $user['username'];
-$avatarUrl = $user['avatar_path'] ? '/uploads/' . $user['avatar_path'] : null;
+$avatarUrl = $user['avatar_path'] ? uploads_url($user['avatar_path']) : null;
 $joinDate = date('F Y', strtotime($user['created_at']));
 ?>
 
@@ -154,7 +154,7 @@ $joinDate = date('F Y', strtotime($user['created_at']));
             ?>
             <a href="<?= $view->url('/image/' . $image['slug']) ?>" class="group block">
                 <div class="aspect-square bg-neutral-200 dark:bg-neutral-800 rounded-lg overflow-hidden relative">
-                    <img data-src="<?= e('/uploads/' . $thumbSrc) ?>"
+                    <img data-src="<?= e(uploads_url($thumbSrc)) ?>"
                          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"
                          alt="<?= e($image['title']) ?>"
                          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 lazy-image"

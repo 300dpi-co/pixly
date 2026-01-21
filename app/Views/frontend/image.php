@@ -55,15 +55,15 @@
             ?>
             <div class="relative overflow-hidden rounded-lg bg-neutral-900 border border-white/5">
                 <?php if ($isAnimated): ?>
-                <img src="<?= e('/uploads/' . $image['storage_path']) ?>"
+                <img src="<?= e(uploads_url($image['storage_path'])) ?>"
                      alt="<?= e($image['alt_text'] ?: $image['title']) ?>"
                      class="max-w-full h-auto max-h-[75vh]">
                 <?php else: ?>
                 <picture>
                     <?php if ($image['webp_path']): ?>
-                    <source srcset="<?= e('/uploads/' . $image['webp_path']) ?>" type="image/webp">
+                    <source srcset="<?= e(uploads_url($image['webp_path'])) ?>" type="image/webp">
                     <?php endif; ?>
-                    <img src="<?= e('/uploads/' . $image['storage_path']) ?>"
+                    <img src="<?= e(uploads_url($image['storage_path'])) ?>"
                          alt="<?= e($image['alt_text'] ?: $image['title']) ?>"
                          class="max-w-full h-auto max-h-[75vh]">
                 </picture>
@@ -122,7 +122,7 @@
                 Embed
             </button>
 
-            <a href="<?= e('/uploads/' . $image['storage_path']) ?>" download
+            <a href="<?= e(uploads_url($image['storage_path'])) ?>" download
                class="group inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-800 to-red-700 hover:from-red-700 hover:to-red-600 text-white rounded-lg text-sm font-medium transition-all border border-red-600/30">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -206,7 +206,7 @@
             <a href="<?= $view->url('/image/' . $related['slug']) ?>" class="group">
                 <div class="aspect-square bg-neutral-900 rounded-lg overflow-hidden border border-white/5 group-hover:border-amber-700/20 transition-all">
                     <?php $thumbSrc = $related['thumbnail_webp_path'] ?: $related['thumbnail_path']; ?>
-                    <img data-src="<?= e('/uploads/' . $thumbSrc) ?>"
+                    <img data-src="<?= e(uploads_url($thumbSrc)) ?>"
                          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"
                          alt="<?= e($related['title']) ?>"
                          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -273,9 +273,9 @@ $siteName = config('app.name');
 $pageUrl = $siteUrl . '/image/' . $image['slug'];
 $isAnimatedEmbed = !empty($image['is_animated']);
 $fullImageUrl = $isAnimatedEmbed
-    ? $siteUrl . '/uploads/' . $image['storage_path']
-    : $siteUrl . '/uploads/' . ($image['webp_path'] ?: $image['storage_path']);
-$thumbUrl = $siteUrl . '/uploads/' . ($image['thumbnail_path'] ?? $image['storage_path']);
+    ? uploads_url($image['storage_path'])
+    : uploads_url($image['webp_path'] ?: $image['storage_path']);
+$thumbUrl = uploads_url($image['thumbnail_path'] ?? $image['storage_path']);
 $imageTitle = $image['title'];
 $imageAlt = $image['alt_text'] ?: $image['title'];
 ?>

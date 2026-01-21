@@ -43,10 +43,22 @@ return [
     'app' => [
         'name' => 'Pixly',
         'url' => (function() {
-            // Auto-detect URL from request
+            // Auto-detect URL from request, including subdirectory path
             $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? 'localhost';
-            return "{$protocol}://{$host}";
+
+            // Detect subdirectory path from SCRIPT_NAME
+            $basePath = '';
+            if (!empty($_SERVER['SCRIPT_NAME'])) {
+                $basePath = dirname($_SERVER['SCRIPT_NAME']);
+                // Normalize path separators and remove trailing slashes
+                $basePath = str_replace('\\', '/', $basePath);
+                if ($basePath === '/' || $basePath === '.') {
+                    $basePath = '';
+                }
+            }
+
+            return "{$protocol}://{$host}{$basePath}";
         })(),
         'env' => 'production', // development, staging, production
         'debug' => false,

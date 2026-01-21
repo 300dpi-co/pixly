@@ -215,7 +215,7 @@
                     ?>
                     <a href="<?= $view->url('/image/' . $image['slug']) ?>" class="group block">
                         <div class="relative aspect-[3/4] bg-neutral-900 rounded-xl overflow-hidden ring-1 ring-white/5 group-hover:ring-red-500/50 transition-all">
-                            <img src="<?= e('/uploads/' . $thumbSrc) ?>"
+                            <img src="<?= e(uploads_url($thumbSrc)) ?>"
                                  alt="<?= e($image['alt_text'] ?: $image['title']) ?>"
                                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                  loading="lazy">

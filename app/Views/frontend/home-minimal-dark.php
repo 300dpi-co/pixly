@@ -44,7 +44,7 @@ $sideFeatures = array_slice($featuredImages ?: $trendingImages, 1, 2);
                 <a href="<?= $view->url('/image/' . $img['slug']) ?>"
                    class="group relative flex-1 bg-neutral-900 overflow-hidden"
                    title="<?= e($img['title']) ?>">
-                    <img data-src="<?= e('/uploads/' . $thumbSrc) ?>"
+                    <img data-src="<?= e(uploads_url($thumbSrc)) ?>"
                          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Crect fill='%23171717' width='400' height='300'/%3E%3C/svg%3E"
                          alt="<?= e($img['alt_text'] ?: $img['title']) ?>"
                          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
@@ -96,7 +96,7 @@ $sideFeatures = array_slice($featuredImages ?: $trendingImages, 1, 2);
                class="group"
                title="<?= e($image['title']) ?>">
                 <div class="relative aspect-[4/5] bg-neutral-900 overflow-hidden">
-                    <img data-src="<?= e('/uploads/' . $thumbSrc) ?>"
+                    <img data-src="<?= e(uploads_url($thumbSrc)) ?>"
                          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 500'%3E%3Crect fill='%23171717' width='400' height='500'/%3E%3C/svg%3E"
                          alt="<?= e($image['alt_text'] ?: $image['title']) ?>"
                          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
@@ -129,7 +129,7 @@ $sideFeatures = array_slice($featuredImages ?: $trendingImages, 1, 2);
             <a href="<?= $view->url('/image/' . $image['slug']) ?>"
                class="group relative aspect-square bg-neutral-800 overflow-hidden"
                title="<?= e($image['title']) ?>">
-                <img data-src="<?= e('/uploads/' . $thumbSrc) ?>"
+                <img data-src="<?= e(uploads_url($thumbSrc)) ?>"
                      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 300'%3E%3Crect fill='%23262626' width='300' height='300'/%3E%3C/svg%3E"
                      alt="<?= e($image['alt_text'] ?: $image['title']) ?>"
                      class="w-full h-full object-cover group-hover:opacity-80 transition-opacity">

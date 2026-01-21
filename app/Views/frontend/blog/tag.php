@@ -26,7 +26,7 @@
                     <a href="/blog/<?= e($post->slug) ?>" class="block">
                         <?php if ($post->featured_image): ?>
                         <div class="aspect-video overflow-hidden">
-                            <img src="/uploads/<?= e($post->featured_image) ?>" alt="" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
+                            <img src="<?= uploads_url(e($post->featured_image)) ?>" alt="" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
                         </div>
                         <?php else: ?>
                         <div class="aspect-video bg-gradient-to-br from-neutral-100 to-neutral-200 dark:from-neutral-700 dark:to-neutral-600"></div>

@@ -7,7 +7,7 @@
             <!-- Main Featured -->
             <a href="/blog/<?= e($mainFeatured->slug) ?>" class="group relative block h-80 lg:h-full rounded-2xl overflow-hidden">
                 <?php if ($mainFeatured->featured_image): ?>
-                <img src="/uploads/<?= e($mainFeatured->featured_image) ?>" alt="<?= e($mainFeatured->featured_image_alt ?: $mainFeatured->title) ?>"
+                <img src="<?= uploads_url(e($mainFeatured->featured_image)) ?>" alt="<?= e($mainFeatured->featured_image_alt ?: $mainFeatured->title) ?>"
                      class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
                 <?php else: ?>
                 <div class="absolute inset-0 bg-gradient-to-br from-primary-500 to-primary-700"></div>
@@ -32,7 +32,7 @@
                 <?php foreach ($featuredPosts as $featured): ?>
                 <a href="/blog/<?= e($featured->slug) ?>" class="group relative block h-36 lg:h-auto rounded-xl overflow-hidden">
                     <?php if ($featured->featured_image): ?>
-                    <img src="/uploads/<?= e($featured->featured_image) ?>" alt=""
+                    <img src="<?= uploads_url(e($featured->featured_image)) ?>" alt=""
                          class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
                     <?php else: ?>
                     <div class="absolute inset-0 bg-gradient-to-br from-secondary-500 to-secondary-700"></div>
@@ -82,7 +82,7 @@
                     <a href="/blog/<?= e($post->slug) ?>" class="block">
                         <?php if ($post->featured_image): ?>
                         <div class="aspect-video overflow-hidden">
-                            <img src="/uploads/<?= e($post->featured_image) ?>" alt="<?= e($post->featured_image_alt ?: $post->title) ?>"
+                            <img src="<?= uploads_url(e($post->featured_image)) ?>" alt="<?= e($post->featured_image_alt ?: $post->title) ?>"
                                  class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
                         </div>
                         <?php else: ?>

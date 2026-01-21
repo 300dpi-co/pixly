@@ -213,7 +213,7 @@
                 <a href="<?= $view->url('/image/' . $related['slug']) ?>" class="group">
                     <div class="aspect-square bg-neutral-100 rounded-lg overflow-hidden border border-neutral-200 group-hover:border-teal-300 transition-all">
                         <?php $thumbSrc = $related['thumbnail_webp_path'] ?: $related['thumbnail_path']; ?>
-                        <img data-src="<?= e('/uploads/' . $thumbSrc) ?>"
+                        <img data-src="<?= e(uploads_url($thumbSrc)) ?>"
                              src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"
                              alt="<?= e($related['title']) ?>"
                              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
