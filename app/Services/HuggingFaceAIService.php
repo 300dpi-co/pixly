@@ -486,7 +486,13 @@ class HuggingFaceAIService
                 "SELECT setting_value FROM settings WHERE setting_key = 'huggingface_api_key'"
             );
 
-            if ($result && !empty($result['setting_value'])) {
+            // Auto-create setting if it doesn't exist
+            if (!$result) {
+                $this->ensureSettingsExist($db);
+                return '';
+            }
+
+            if (!empty($result['setting_value'])) {
                 return $result['setting_value'];
             }
         } catch (\Throwable $e) {
@@ -494,6 +500,29 @@ class HuggingFaceAIService
         }
 
         return '';
+    }
+
+    /**
+     * Auto-create settings if they don't exist
+     */
+    private function ensureSettingsExist($db): void
+    {
+        try {
+            // Check and create huggingface_api_key setting
+            $exists = $db->fetch("SELECT 1 FROM settings WHERE setting_key = 'huggingface_api_key'");
+            if (!$exists) {
+                $db->insert('settings', [
+                    'setting_key' => 'huggingface_api_key',
+                    'setting_value' => '',
+                    'setting_type' => 'encrypted',
+                    'setting_group' => 'api_keys',
+                    'description' => 'Hugging Face API key for Florence-2 and WD14 tagger',
+                    'is_public' => 0,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            // Silently fail - settings will be created manually
+        }
     }
 
     /**
