@@ -66,7 +66,7 @@ class SettingsController extends Controller
         'api' => [
             'label' => 'API Keys',
             'icon' => 'key',
-            'settings' => ['ai_provider', 'huggingface_api_key', 'replicate_api_key', 'claude_api_key', 'unsplash_api_key', 'pexels_api_key'],
+            'settings' => ['ai_provider', 'aihorde_api_key', 'replicate_api_key', 'claude_api_key', 'unsplash_api_key', 'pexels_api_key'],
         ],
         'ads' => [
             'label' => 'Ads',
@@ -184,7 +184,11 @@ class SettingsController extends Controller
         // Clear all settings cache
         clear_settings_cache();
 
-        session_flash('success', "Settings updated successfully. ({$updated} settings saved)");
+        if ($updated > 0) {
+            session_flash('success', "Settings saved successfully.");
+        } else {
+            session_flash('info', "No changes detected.");
+        }
         return Response::redirect("/admin/settings?group={$group}");
     }
 
