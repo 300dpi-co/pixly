@@ -802,7 +802,7 @@
                 foreach ($currentGroup['settings'] as $s) {
                     $apiSettings[$s['setting_key']] = $s['setting_value'];
                 }
-                $currentProvider = $apiSettings['ai_provider'] ?? 'huggingface';
+                $currentProvider = $apiSettings['ai_provider'] ?? 'aihorde';
                 ?>
 
                 <form method="POST" action="/admin/settings" class="p-6">
@@ -816,32 +816,33 @@
                             </p>
                         </div>
 
-                        <!-- Hugging Face -->
-                        <div class="border rounded-lg p-4" id="hf-section">
+                        <!-- AI Horde -->
+                        <div class="border rounded-lg p-4" id="aihorde-section">
                             <div class="flex items-center justify-between mb-3">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-white font-bold">HF</div>
+                                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center text-white font-bold">AH</div>
                                     <div>
-                                        <span class="font-medium text-neutral-900">Hugging Face</span>
+                                        <span class="font-medium text-neutral-900">AI Horde</span>
                                         <span class="ml-2 text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded">Recommended</span>
-                                        <p class="text-sm text-neutral-500">Florence-2 + WD14 tagger for adult content</p>
+                                        <span class="ml-1 text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">Free</span>
+                                        <p class="text-sm text-neutral-500">Free image captioning + Danbooru tags for adult content</p>
                                     </div>
                                 </div>
                                 <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="hidden" name="ai_provider_huggingface" value="0">
-                                    <input type="checkbox" name="ai_provider_huggingface" value="1" class="sr-only peer" <?= $currentProvider === 'huggingface' ? 'checked' : '' ?> onchange="updateProvider(this, 'huggingface')">
+                                    <input type="hidden" name="ai_provider_aihorde" value="0">
+                                    <input type="checkbox" name="ai_provider_aihorde" value="1" class="sr-only peer" <?= $currentProvider === 'aihorde' ? 'checked' : '' ?> onchange="updateProvider(this, 'aihorde')">
                                     <div class="w-11 h-6 bg-neutral-200 peer-focus:ring-2 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
                                 </label>
                             </div>
                             <div class="mt-3">
                                 <?php
-                                $hfKey = $apiSettings['huggingface_api_key'] ?? '';
-                                $hfMasked = $hfKey ? substr($hfKey, 0, 4) . str_repeat('*', max(0, strlen($hfKey) - 8)) . substr($hfKey, -4) : '';
+                                $hordeKey = $apiSettings['aihorde_api_key'] ?? '';
+                                $hordeMasked = $hordeKey ? substr($hordeKey, 0, 4) . str_repeat('*', max(0, strlen($hordeKey) - 8)) . substr($hordeKey, -4) : '';
                                 ?>
-                                <input type="text" name="huggingface_api_key" value="<?= e($hfMasked) ?>"
-                                       placeholder="hf_..."
+                                <input type="text" name="aihorde_api_key" value="<?= e($hordeMasked) ?>"
+                                       placeholder="Enter your AI Horde API key"
                                        class="w-full px-3 py-2 border rounded-lg font-mono text-sm">
-                                <p class="text-xs text-neutral-500 mt-1">Get from <a href="https://huggingface.co/settings/tokens" target="_blank" class="text-primary-600 hover:underline">huggingface.co/settings/tokens</a></p>
+                                <p class="text-xs text-neutral-500 mt-1">Get from <a href="https://stablehorde.net/register" target="_blank" class="text-primary-600 hover:underline">stablehorde.net/register</a> (free registration)</p>
                             </div>
                         </div>
 
@@ -948,23 +949,23 @@
                         document.querySelectorAll('[id$="-section"]').forEach(section => {
                             section.classList.remove('border-primary-300', 'bg-primary-50/30');
                         });
-                        document.getElementById(provider === 'huggingface' ? 'hf' : provider + '-section').classList.add('border-primary-300', 'bg-primary-50/30');
+                        document.getElementById(provider + '-section').classList.add('border-primary-300', 'bg-primary-50/30');
                     } else {
-                        // If unchecking, default to huggingface
-                        document.querySelector('input[name="ai_provider_huggingface"][type="checkbox"]').checked = true;
-                        document.getElementById('ai_provider_value').value = 'huggingface';
+                        // If unchecking, default to aihorde
+                        document.querySelector('input[name="ai_provider_aihorde"][type="checkbox"]').checked = true;
+                        document.getElementById('ai_provider_value').value = 'aihorde';
 
                         document.querySelectorAll('[id$="-section"]').forEach(section => {
                             section.classList.remove('border-primary-300', 'bg-primary-50/30');
                         });
-                        document.getElementById('hf-section').classList.add('border-primary-300', 'bg-primary-50/30');
+                        document.getElementById('aihorde-section').classList.add('border-primary-300', 'bg-primary-50/30');
                     }
                 }
 
                 // Set initial visual state
                 document.addEventListener('DOMContentLoaded', function() {
                     const currentProvider = document.getElementById('ai_provider_value').value;
-                    const sectionId = currentProvider === 'huggingface' ? 'hf-section' : currentProvider + '-section';
+                    const sectionId = currentProvider + '-section';
                     document.getElementById(sectionId)?.classList.add('border-primary-300', 'bg-primary-50/30');
                 });
                 </script>
