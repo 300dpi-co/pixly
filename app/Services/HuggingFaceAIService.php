@@ -7,13 +7,14 @@ namespace App\Services;
 /**
  * Hugging Face AI Service
  *
- * Uses Florence-2 for captions and WD14 Tagger for NSFW tags.
+ * Uses BLIP for captions and WD14 Tagger for NSFW tags.
  * Cost-effective solution for adult image galleries.
  */
 class HuggingFaceAIService
 {
-    private const FLORENCE_MODEL = 'microsoft/Florence-2-large';
-    private const WD14_MODEL = 'SmilingWolf/wd-v1-4-vit-tagger-v2';
+    // BLIP is more reliable on free Inference API than Florence-2
+    private const CAPTION_MODEL = 'Salesforce/blip-image-captioning-large';
+    private const WD14_MODEL = 'SmilingWolf/wd-vit-tagger-v3';
     private const API_URL = 'https://api-inference.huggingface.co/models/';
     private const TIMEOUT = 120;
 
@@ -45,24 +46,34 @@ class HuggingFaceAIService
             throw new \RuntimeException('Failed to read image file');
         }
 
-        // Get caption from Florence-2
-        $caption = $this->getFlorence2Caption($imageData);
+        // Get caption from BLIP
+        $caption = $this->getCaption($imageData);
 
-        // Get tags from WD14
-        $wd14Tags = $this->getWD14Tags($imageData);
+        // Get tags from WD14 (may fail on free API, that's OK)
+        $wd14Tags = [];
+        try {
+            $wd14Tags = $this->getWD14Tags($imageData);
+        } catch (\Throwable $e) {
+            error_log("WD14 tagger failed (optional): " . $e->getMessage());
+            // Continue without WD14 tags - we'll extract keywords from caption
+        }
+
+        // Log for debugging
+        error_log("HuggingFace AI - Caption: " . substr($caption, 0, 100));
+        error_log("HuggingFace AI - Tags count: " . count($wd14Tags));
 
         // Build metadata from combined results
         return $this->buildMetadata($caption, $wd14Tags, $existingCategories);
     }
 
     /**
-     * Get caption from Florence-2 model
+     * Get caption from BLIP model
      */
-    private function getFlorence2Caption(string $imageData): string
+    private function getCaption(string $imageData): string
     {
-        $response = $this->callInferenceAPI(self::FLORENCE_MODEL, $imageData, [
-            'task' => '<MORE_DETAILED_CAPTION>'
-        ]);
+        $response = $this->callInferenceAPI(self::CAPTION_MODEL, $imageData);
+
+        error_log("BLIP response: " . json_encode($response));
 
         if (isset($response[0]['generated_text'])) {
             return $response[0]['generated_text'];
@@ -78,7 +89,7 @@ class HuggingFaceAIService
             return $response;
         }
 
-        $this->errors[] = 'Florence-2 returned unexpected format';
+        $this->errors[] = 'BLIP returned unexpected format: ' . json_encode($response);
         return '';
     }
 
@@ -89,8 +100,10 @@ class HuggingFaceAIService
     {
         $response = $this->callInferenceAPI(self::WD14_MODEL, $imageData);
 
+        error_log("WD14 response: " . json_encode($response));
+
         if (!is_array($response)) {
-            $this->errors[] = 'WD14 returned unexpected format';
+            $this->errors[] = 'WD14 returned unexpected format: ' . gettype($response);
             return [];
         }
 
@@ -127,21 +140,63 @@ class HuggingFaceAIService
     }
 
     /**
+     * Extract tags from caption when WD14 is unavailable
+     */
+    private function extractTagsFromCaption(string $caption): array
+    {
+        $caption = strtolower($caption);
+        $tags = [];
+
+        // Keywords to look for in adult content captions
+        $keywords = [
+            'woman', 'women', 'girl', 'lady', 'female', 'model',
+            'blonde', 'brunette', 'redhead', 'black hair', 'brown hair',
+            'bikini', 'lingerie', 'underwear', 'dress', 'naked', 'nude', 'topless',
+            'bedroom', 'bathroom', 'outdoor', 'beach', 'pool', 'couch', 'bed',
+            'sitting', 'standing', 'lying', 'posing', 'smiling',
+            'sexy', 'beautiful', 'gorgeous', 'stunning', 'attractive',
+            'curvy', 'slim', 'petite', 'athletic', 'fit',
+            'breasts', 'legs', 'ass', 'body',
+            'young', 'mature', 'milf',
+            'selfie', 'photo', 'picture',
+        ];
+
+        foreach ($keywords as $keyword) {
+            if (strpos($caption, $keyword) !== false) {
+                $tags[] = $keyword;
+            }
+        }
+
+        // Also extract nouns from caption using simple word extraction
+        $words = preg_split('/\s+/', $caption);
+        foreach ($words as $word) {
+            $word = preg_replace('/[^a-z]/', '', $word);
+            if (strlen($word) > 4 && !in_array($word, $tags)) {
+                // Skip common stop words
+                $stopWords = ['with', 'this', 'that', 'from', 'have', 'been', 'were', 'what', 'when', 'where', 'which', 'there', 'their', 'about'];
+                if (!in_array($word, $stopWords)) {
+                    $tags[] = $word;
+                }
+            }
+        }
+
+        return array_slice(array_unique($tags), 0, 20);
+    }
+
+    /**
      * Call Hugging Face Inference API
      */
-    private function callInferenceAPI(string $model, string $imageData, array $parameters = []): mixed
+    private function callInferenceAPI(string $model, string $imageData): mixed
     {
         $url = self::API_URL . $model;
+
+        error_log("Calling HuggingFace API: {$model}");
 
         // For image models, send raw image data
         $headers = [
             'Authorization: Bearer ' . $this->apiKey,
             'Content-Type: application/octet-stream',
         ];
-
-        if (!empty($parameters)) {
-            $headers[] = 'X-Parameters: ' . json_encode($parameters);
-        }
 
         $context = stream_context_create([
             'http' => [
@@ -156,14 +211,20 @@ class HuggingFaceAIService
         $response = @file_get_contents($url, false, $context);
 
         if ($response === false) {
+            error_log("HuggingFace API connection failed for {$model}");
             throw new \RuntimeException("Failed to connect to Hugging Face API for {$model}");
         }
+
+        error_log("HuggingFace API raw response for {$model}: " . substr($response, 0, 500));
 
         $data = json_decode($response, true);
 
         if (isset($data['error'])) {
+            error_log("HuggingFace API error: " . $data['error']);
+
             // Check if model is loading
             if (stripos($data['error'], 'loading') !== false) {
+                error_log("Model {$model} is loading, waiting 20s...");
                 // Wait and retry once
                 sleep(20);
                 $response = @file_get_contents($url, false, $context);
@@ -183,12 +244,17 @@ class HuggingFaceAIService
     }
 
     /**
-     * Build metadata from Florence-2 caption and WD14 tags
+     * Build metadata from BLIP caption and WD14 tags
      */
     private function buildMetadata(string $caption, array $wd14Tags, array $existingCategories): array
     {
-        // Extract tag names
+        // Extract tag names from WD14, or extract from caption if empty
         $tagNames = array_column($wd14Tags, 'name');
+
+        if (empty($tagNames) && !empty($caption)) {
+            $tagNames = $this->extractTagsFromCaption($caption);
+            error_log("Extracted " . count($tagNames) . " tags from caption");
+        }
 
         // Generate title from caption (first sentence, cleaned up)
         $title = $this->generateTitle($caption, $tagNames);

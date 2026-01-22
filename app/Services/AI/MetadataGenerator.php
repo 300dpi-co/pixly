@@ -98,7 +98,11 @@ class MetadataGenerator
 
         // Check if AI is configured
         if (!$this->ai->isConfigured()) {
-            $providerName = $this->provider === 'replicate' ? 'Replicate' : 'Claude';
+            $providerName = match($this->provider) {
+                'huggingface' => 'Hugging Face',
+                'replicate' => 'Replicate',
+                default => 'Claude',
+            };
             $this->errors[] = "{$providerName} AI not configured. Add API key in Settings > API Keys.";
             return false;
         }
