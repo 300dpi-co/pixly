@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS users (
     twitter_handle VARCHAR(50) NULL,
     instagram_handle VARCHAR(50) NULL,
     is_public TINYINT(1) DEFAULT 1,
+    is_trusted TINYINT(1) DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     last_login_at DATETIME NULL,
@@ -31,7 +32,8 @@ CREATE TABLE IF NOT EXISTS users (
     INDEX idx_username (username),
     INDEX idx_status (status),
     INDEX idx_role (role),
-    INDEX idx_is_public (is_public)
+    INDEX idx_is_public (is_public),
+    INDEX idx_is_trusted (is_trusted)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Password resets table
