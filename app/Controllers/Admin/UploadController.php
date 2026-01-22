@@ -8,6 +8,7 @@ use App\Core\Controller;
 use App\Core\Response;
 use App\Services\UploadService;
 use App\Services\ImageProcessor;
+use App\Services\AI\MetadataGenerator;
 
 /**
  * Admin Upload Controller
@@ -133,15 +134,18 @@ class UploadController extends Controller
                     );
                 }
 
-                // Queue for AI processing
-                // AI processing always happens (for metadata), regardless of moderation
-                if ($this->request->input('ai_process') === 'on' || $bypassModeration) {
-                    $db->insert('ai_processing_queue', [
-                        'image_id' => $imageId,
-                        'task_type' => 'all',
-                        'priority' => $bypassModeration ? 10 : 5, // Higher priority for auto-approved
-                        'status' => 'pending',
-                    ]);
+                // Always queue for AI processing (generates metadata)
+                $db->insert('ai_processing_queue', [
+                    'image_id' => $imageId,
+                    'task_type' => 'all',
+                    'priority' => $bypassModeration ? 10 : 5,
+                    'status' => 'pending',
+                ]);
+
+                // For bypass users (admin/trusted), process AI immediately
+                // This auto-generates metadata and publishes the image
+                if ($bypassModeration) {
+                    $this->processImageAI($imageId);
                 }
 
                 $uploadedCount++;
@@ -284,5 +288,38 @@ class UploadController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * Process image with AI immediately
+     * Generates metadata and auto-publishes if moderation approved
+     */
+    private function processImageAI(int $imageId): void
+    {
+        try {
+            $generator = new MetadataGenerator();
+
+            // Check if AI is configured
+            if (!$generator->getProvider()) {
+                return; // AI not configured, skip
+            }
+
+            // Process the image
+            $success = $generator->processImage($imageId);
+
+            if ($success) {
+                // Mark queue item as completed
+                $db = $this->db();
+                $db->update(
+                    'ai_processing_queue',
+                    ['status' => 'completed', 'completed_at' => date('Y-m-d H:i:s')],
+                    'image_id = :image_id AND status = :status',
+                    ['image_id' => $imageId, 'status' => 'pending']
+                );
+            }
+        } catch (\Throwable $e) {
+            // Log error but don't fail the upload
+            error_log('AI processing failed for image ' . $imageId . ': ' . $e->getMessage());
+        }
     }
 }

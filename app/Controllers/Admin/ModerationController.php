@@ -6,6 +6,7 @@ namespace App\Controllers\Admin;
 
 use App\Core\Controller;
 use App\Core\Response;
+use App\Services\AI\MetadataGenerator;
 
 class ModerationController extends Controller
 {
@@ -69,33 +70,44 @@ class ModerationController extends Controller
             return Response::json(['error' => 'Image not found'], 404);
         }
 
+        // Update moderation status (AI will set status to published after processing)
         $db->update('images', [
             'moderation_status' => 'approved',
-            'status' => 'published',
             'moderated_by' => $_SESSION['user_id'] ?? null,
             'moderated_at' => date('Y-m-d H:i:s'),
         ], 'id = :id', ['id' => $id]);
 
-        // Add to AI queue if not already processed
+        // Check if already in queue
         $inQueue = $db->fetch(
-            "SELECT id FROM ai_processing_queue WHERE image_id = :id",
+            "SELECT id, status FROM ai_processing_queue WHERE image_id = :id",
             ['id' => $id]
         );
 
-        if (!$inQueue && empty($image['ai_generated_title'])) {
+        if (!$inQueue) {
+            // Add to queue
             $db->insert('ai_processing_queue', [
                 'image_id' => $id,
                 'task_type' => 'all',
-                'priority' => 5,
+                'priority' => 10, // High priority for approved images
                 'status' => 'pending',
             ]);
+        } elseif ($inQueue['status'] === 'failed') {
+            // Reset failed items
+            $db->update('ai_processing_queue', [
+                'status' => 'pending',
+                'attempts' => 0,
+                'error_message' => null,
+            ], 'id = :id', ['id' => $inQueue['id']]);
         }
+
+        // Process AI immediately - generates metadata and publishes
+        $this->processImageAI($id);
 
         if ($this->isAjax()) {
             return Response::json(['success' => true]);
         }
 
-        session_flash('success', 'Image approved.');
+        session_flash('success', 'Image approved and processed.');
         return Response::redirect('/admin/moderation');
     }
 
@@ -144,9 +156,9 @@ class ModerationController extends Controller
         foreach ($ids as $id) {
             $id = (int) $id;
 
+            // Update moderation status
             $db->update('images', [
                 'moderation_status' => 'approved',
-                'status' => 'published',
                 'moderated_by' => $moderatorId,
                 'moderated_at' => $now,
             ], 'id = :id AND moderation_status = :status', [
@@ -154,9 +166,9 @@ class ModerationController extends Controller
                 'status' => 'pending'
             ]);
 
-            // Add to AI queue
+            // Add to AI queue if not present
             $inQueue = $db->fetch(
-                "SELECT id FROM ai_processing_queue WHERE image_id = :id",
+                "SELECT id, status FROM ai_processing_queue WHERE image_id = :id",
                 ['id' => $id]
             );
 
@@ -164,10 +176,19 @@ class ModerationController extends Controller
                 $db->insert('ai_processing_queue', [
                     'image_id' => $id,
                     'task_type' => 'all',
-                    'priority' => 5,
+                    'priority' => 10,
                     'status' => 'pending',
                 ]);
+            } elseif ($inQueue['status'] === 'failed') {
+                $db->update('ai_processing_queue', [
+                    'status' => 'pending',
+                    'attempts' => 0,
+                    'error_message' => null,
+                ], 'id = :id', ['id' => $inQueue['id']]);
             }
+
+            // Process AI immediately
+            $this->processImageAI($id);
 
             $count++;
         }
@@ -176,7 +197,7 @@ class ModerationController extends Controller
             return Response::json(['success' => true, 'count' => $count]);
         }
 
-        session_flash('success', "{$count} images approved.");
+        session_flash('success', "{$count} images approved and processed.");
         return Response::redirect('/admin/moderation');
     }
 
@@ -271,5 +292,34 @@ class ModerationController extends Controller
     {
         return !empty($_SERVER['HTTP_X_REQUESTED_WITH'])
             && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+    }
+
+    /**
+     * Process image with AI immediately
+     * Generates metadata and auto-publishes
+     */
+    private function processImageAI(int $imageId): void
+    {
+        try {
+            $generator = new MetadataGenerator();
+
+            if (!$generator->getProvider()) {
+                return; // AI not configured
+            }
+
+            $success = $generator->processImage($imageId);
+
+            if ($success) {
+                $db = $this->db();
+                $db->update(
+                    'ai_processing_queue',
+                    ['status' => 'completed', 'completed_at' => date('Y-m-d H:i:s')],
+                    'image_id = :image_id AND status IN (:s1, :s2)',
+                    ['image_id' => $imageId, 's1' => 'pending', 's2' => 'processing']
+                );
+            }
+        } catch (\Throwable $e) {
+            error_log('AI processing failed for image ' . $imageId . ': ' . $e->getMessage());
+        }
     }
 }

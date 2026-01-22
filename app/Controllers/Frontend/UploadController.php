@@ -9,6 +9,7 @@ use App\Core\Response;
 use App\Models\User;
 use App\Services\UploadService;
 use App\Services\ImageProcessor;
+use App\Services\AI\MetadataGenerator;
 
 /**
  * User Upload Controller
@@ -164,11 +165,13 @@ class UploadController extends Controller
             $db->insert('ai_processing_queue', [
                 'image_id' => $imageId,
                 'task_type' => 'all',
-                'priority' => 5,
+                'priority' => $bypassModeration ? 10 : 5,
                 'status' => 'pending',
             ]);
 
+            // For bypass users (admin/trusted), process AI immediately
             if ($bypassModeration) {
+                $this->processImageAI($imageId);
                 return $this->redirectWithSuccess('/image/' . $slug, 'Image uploaded successfully!');
             }
 
@@ -289,5 +292,33 @@ class UploadController extends Controller
             return true;
         }
         return false;
+    }
+
+    /**
+     * Process image with AI immediately
+     */
+    private function processImageAI(int $imageId): void
+    {
+        try {
+            $generator = new MetadataGenerator();
+
+            if (!$generator->getProvider()) {
+                return;
+            }
+
+            $success = $generator->processImage($imageId);
+
+            if ($success) {
+                $db = $this->db();
+                $db->update(
+                    'ai_processing_queue',
+                    ['status' => 'completed', 'completed_at' => date('Y-m-d H:i:s')],
+                    'image_id = :image_id AND status = :status',
+                    ['image_id' => $imageId, 'status' => 'pending']
+                );
+            }
+        } catch (\Throwable $e) {
+            error_log('AI processing failed for image ' . $imageId . ': ' . $e->getMessage());
+        }
     }
 }
