@@ -69,91 +69,14 @@ class SystemController extends Controller
     public function update(): Response
     {
         try {
-            // Try to fetch status directly from GitHub
-            $statusUrl = 'https://raw.githubusercontent.com/300dpi-co/pixly/main/remote/status.json';
+            // Check if this is a git-managed installation
+            $isGitRepo = is_dir(ROOT_PATH . '/.git');
 
-            $context = stream_context_create([
-                'http' => [
-                    'timeout' => 10,
-                    'ignore_errors' => true,
-                    'header' => 'User-Agent: Pixly-Updater/1.0',
-                ],
-                'ssl' => [
-                    'verify_peer' => false,
-                    'verify_peer_name' => false,
-                ],
-            ]);
-
-            $response = @file_get_contents($statusUrl, false, $context);
-
-            if ($response === false) {
-                $error = error_get_last();
-                return $this->json([
-                    'success' => false,
-                    'error' => 'Could not connect to update server',
-                    'details' => $error['message'] ?? 'Unknown error',
-                    'tip' => 'Check if allow_url_fopen is enabled in PHP',
-                ]);
+            if ($isGitRepo) {
+                return $this->gitUpdate();
             }
 
-            $status = json_decode($response, true);
-
-            if (!$status || !is_array($status)) {
-                return $this->json([
-                    'success' => false,
-                    'error' => 'Invalid response from update server',
-                    'response' => substr($response, 0, 200),
-                ]);
-            }
-
-            // Check current version
-            $currentVersion = file_exists(ROOT_PATH . '/VERSION')
-                ? trim(file_get_contents(ROOT_PATH . '/VERSION'))
-                : '1.0.0';
-
-            if (!version_compare($status['latest_version'] ?? '0', $currentVersion, '>')) {
-                return $this->json([
-                    'success' => false,
-                    'error' => 'No update available - you have the latest version',
-                    'current' => $currentVersion,
-                    'latest' => $status['latest_version'] ?? 'unknown',
-                ]);
-            }
-
-            if (empty($status['download_url'])) {
-                return $this->json([
-                    'success' => false,
-                    'error' => 'No download URL available',
-                ]);
-            }
-
-            // Force auto_update flag for manual update
-            $status['auto_update'] = true;
-
-            // Perform update
-            $updater = new AutoUpdater();
-            $result = $updater->update($status);
-
-            if ($result) {
-                // Clear update cache
-                $cacheFile = (defined('STORAGE_PATH') ? STORAGE_PATH : ROOT_PATH . '/storage')
-                    . '/cache/update_check.json';
-                @unlink($cacheFile);
-
-                return $this->json([
-                    'success' => true,
-                    'message' => 'Update installed successfully! Please refresh the page.',
-                    'version' => $status['latest_version'],
-                    'log' => $updater->getLog(),
-                ]);
-            } else {
-                return $this->json([
-                    'success' => false,
-                    'error' => 'Update failed: ' . implode(', ', $updater->getErrors()),
-                    'errors' => $updater->getErrors(),
-                    'log' => $updater->getLog(),
-                ]);
-            }
+            return $this->zipUpdate();
 
         } catch (\Throwable $e) {
             return $this->json([
@@ -161,6 +84,145 @@ class SystemController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => config('app.debug', false) ? $e->getTraceAsString() : null,
             ], 500);
+        }
+    }
+
+    /**
+     * Update via git pull (for git-deployed sites)
+     */
+    private function gitUpdate(): Response
+    {
+        // Try git pull
+        $output = [];
+        $returnCode = 0;
+
+        // Change to root directory and pull
+        $command = 'cd ' . escapeshellarg(ROOT_PATH) . ' && git fetch origin && git reset --hard origin/main 2>&1';
+
+        exec($command, $output, $returnCode);
+
+        $outputStr = implode("\n", $output);
+
+        if ($returnCode === 0) {
+            // Clear update cache
+            $cacheFile = (defined('STORAGE_PATH') ? STORAGE_PATH : ROOT_PATH . '/storage')
+                . '/cache/update_check.json';
+            @unlink($cacheFile);
+
+            // Run migrations
+            try {
+                $runner = new \App\Services\MigrationRunner();
+                $runner->runPending();
+            } catch (\Throwable $e) {
+                // Ignore migration errors
+            }
+
+            return $this->json([
+                'success' => true,
+                'message' => 'Update installed via git! Please refresh the page.',
+                'method' => 'git',
+                'output' => $outputStr,
+            ]);
+        }
+
+        // Git failed - try to give helpful error
+        return $this->json([
+            'success' => false,
+            'error' => 'Git update failed',
+            'output' => $outputStr,
+            'tip' => 'Try running manually: git fetch origin && git reset --hard origin/main',
+        ]);
+    }
+
+    /**
+     * Update via zip download (for non-git sites)
+     */
+    private function zipUpdate(): Response
+    {
+        // Try to fetch status directly from GitHub
+        $statusUrl = 'https://raw.githubusercontent.com/300dpi-co/pixly/main/remote/status.json';
+
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => 10,
+                'ignore_errors' => true,
+                'header' => 'User-Agent: Pixly-Updater/1.0',
+            ],
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+            ],
+        ]);
+
+        $response = @file_get_contents($statusUrl, false, $context);
+
+        if ($response === false) {
+            $error = error_get_last();
+            return $this->json([
+                'success' => false,
+                'error' => 'Could not connect to update server',
+                'details' => $error['message'] ?? 'Unknown error',
+                'tip' => 'Check if allow_url_fopen is enabled in PHP',
+            ]);
+        }
+
+        $status = json_decode($response, true);
+
+        if (!$status || !is_array($status)) {
+            return $this->json([
+                'success' => false,
+                'error' => 'Invalid response from update server',
+                'response' => substr($response, 0, 200),
+            ]);
+        }
+
+        // Check current version
+        $currentVersion = file_exists(ROOT_PATH . '/VERSION')
+            ? trim(file_get_contents(ROOT_PATH . '/VERSION'))
+            : '1.0.0';
+
+        if (!version_compare($status['latest_version'] ?? '0', $currentVersion, '>')) {
+            return $this->json([
+                'success' => false,
+                'error' => 'No update available - you have the latest version',
+                'current' => $currentVersion,
+                'latest' => $status['latest_version'] ?? 'unknown',
+            ]);
+        }
+
+        if (empty($status['download_url'])) {
+            return $this->json([
+                'success' => false,
+                'error' => 'No download URL available',
+            ]);
+        }
+
+        // Force auto_update flag for manual update
+        $status['auto_update'] = true;
+
+        // Perform update
+        $updater = new AutoUpdater();
+        $result = $updater->update($status);
+
+        if ($result) {
+            // Clear update cache
+            $cacheFile = (defined('STORAGE_PATH') ? STORAGE_PATH : ROOT_PATH . '/storage')
+                . '/cache/update_check.json';
+            @unlink($cacheFile);
+
+            return $this->json([
+                'success' => true,
+                'message' => 'Update installed successfully! Please refresh the page.',
+                'version' => $status['latest_version'],
+                'log' => $updater->getLog(),
+            ]);
+        } else {
+            return $this->json([
+                'success' => false,
+                'error' => 'Update failed: ' . implode(', ', $updater->getErrors()),
+                'errors' => $updater->getErrors(),
+                'log' => $updater->getLog(),
+            ]);
         }
     }
 
