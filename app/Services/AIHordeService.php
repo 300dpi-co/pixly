@@ -13,9 +13,9 @@ namespace App\Services;
 class AIHordeService
 {
     private const API_BASE = 'https://stablehorde.net/api/v2';
-    private const TIMEOUT = 45;
-    private const POLL_INTERVAL = 3;
-    private const MAX_ATTEMPTS = 12; // 12 * 3 = 36 seconds max
+    private const TIMEOUT = 90;
+    private const POLL_INTERVAL = 4;
+    private const MAX_ATTEMPTS = 20; // 20 * 4 = 80 seconds max
 
     private string $apiKey;
     private array $errors = [];
@@ -41,7 +41,7 @@ class AIHordeService
         $this->debugLog("=== Starting AI Horde analysis ===");
 
         // Increase PHP timeout for async polling
-        set_time_limit(self::TIMEOUT + 10);
+        set_time_limit(self::TIMEOUT + 30);
 
         if (!$this->isConfigured()) {
             $this->debugLog("ERROR: API key not configured. Key length: " . strlen($this->apiKey) . ", Key value: " . ($this->apiKey ?: '(empty)'));
@@ -152,10 +152,16 @@ class AIHordeService
 
     /**
      * Poll for interrogation results
+     * Accepts partial results - will return caption even if tags aren't ready
      */
     private function pollForResults(string $requestId): ?array
     {
         $this->debugLog("Polling for results...");
+
+        $caption = '';
+        $tags = '';
+        $captionDone = false;
+        $tagsDone = false;
 
         for ($i = 0; $i < self::MAX_ATTEMPTS; $i++) {
             sleep(self::POLL_INTERVAL);
@@ -182,21 +188,22 @@ class AIHordeService
             $data = json_decode($response, true);
             $state = $data['state'] ?? 'unknown';
 
-            $this->debugLog("Poll attempt {$i}: state={$state}, raw=" . substr($response, 0, 200));
+            $this->debugLog("Poll attempt {$i}: state={$state}");
 
-            if ($state === 'done') {
-                // Extract results from forms
-                $caption = '';
-                $tags = '';
-
-                foreach ($data['forms'] ?? [] as $form) {
-                    if ($form['form'] === 'caption') {
-                        $caption = $form['result']['caption'] ?? '';
-                    } elseif ($form['form'] === 'interrogation') {
-                        $tags = $form['result']['interrogation'] ?? '';
-                    }
+            // Check individual form states
+            foreach ($data['forms'] ?? [] as $form) {
+                if ($form['form'] === 'caption' && $form['state'] === 'done') {
+                    $caption = $form['result']['caption'] ?? '';
+                    $captionDone = true;
+                } elseif ($form['form'] === 'interrogation' && $form['state'] === 'done') {
+                    $tags = $form['result']['interrogation'] ?? '';
+                    $tagsDone = true;
                 }
+            }
 
+            // If both are done, return immediately
+            if ($state === 'done' || ($captionDone && $tagsDone)) {
+                $this->debugLog("Both forms done - caption: " . strlen($caption) . " chars, tags: " . strlen($tags) . " chars");
                 return [
                     'caption' => $caption,
                     'tags' => $tags,
@@ -205,11 +212,34 @@ class AIHordeService
 
             if ($state === 'faulted' || $state === 'cancelled') {
                 $this->debugLog("Request failed with state: {$state}");
+                // Return partial results if we have any
+                if ($captionDone || $tagsDone) {
+                    $this->debugLog("Returning partial results");
+                    return ['caption' => $caption, 'tags' => $tags];
+                }
                 return null;
+            }
+
+            // After 40 seconds, accept partial results (caption usually ready by then)
+            if ($i >= 10 && $captionDone) {
+                $this->debugLog("Tags taking too long, returning with caption only");
+                return [
+                    'caption' => $caption,
+                    'tags' => $tags, // May be empty
+                ];
             }
         }
 
-        $this->debugLog("Polling timed out after " . (self::MAX_ATTEMPTS * self::POLL_INTERVAL) . " seconds");
+        // Timeout - return partial results if we have caption
+        if ($captionDone) {
+            $this->debugLog("Timeout but have caption - returning partial results");
+            return [
+                'caption' => $caption,
+                'tags' => $tags,
+            ];
+        }
+
+        $this->debugLog("Polling timed out after " . (self::MAX_ATTEMPTS * self::POLL_INTERVAL) . " seconds with no results");
         return null;
     }
 
