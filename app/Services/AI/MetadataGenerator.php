@@ -160,10 +160,12 @@ class MetadataGenerator
             $this->syncAiTags($imageId, $analysis['tags']);
         }
 
-        // Suggest categories
+        // Assign categories (first one is primary)
         if (!empty($analysis['categories'])) {
+            $isFirst = true;
             foreach ($analysis['categories'] as $categoryName) {
-                $this->suggestCategory($imageId, $categoryName);
+                $this->suggestCategory($imageId, $categoryName, $isFirst);
+                $isFirst = false;
             }
         }
 
@@ -288,14 +290,20 @@ class MetadataGenerator
     /**
      * Suggest category based on AI analysis
      */
-    private function suggestCategory(int $imageId, string $categoryName): void
+    private function suggestCategory(int $imageId, string $categoryName, bool $isPrimary = false): void
     {
         $db = app()->getDatabase();
+        $categoryName = trim($categoryName);
 
-        // Find matching category
+        if (empty($categoryName)) {
+            return;
+        }
+
+        // Find matching category (case-insensitive)
+        $categorySlug = strtolower(preg_replace('/[^a-z0-9]+/', '-', strtolower($categoryName)));
         $category = $db->fetch(
-            "SELECT id FROM categories WHERE name = :name OR slug = :slug",
-            ['name' => $categoryName, 'slug' => strtolower($categoryName)]
+            "SELECT id FROM categories WHERE LOWER(name) = LOWER(:name) OR slug = :slug",
+            ['name' => $categoryName, 'slug' => $categorySlug]
         );
 
         if ($category) {
@@ -306,11 +314,23 @@ class MetadataGenerator
             );
 
             if (!$existing) {
+                // Check if image already has a primary category
+                $hasPrimary = $db->fetch(
+                    "SELECT 1 FROM image_categories WHERE image_id = :image_id AND is_primary = 1",
+                    ['image_id' => $imageId]
+                );
+
                 $db->insert('image_categories', [
                     'image_id' => $imageId,
                     'category_id' => $category['id'],
-                    'is_primary' => false,
+                    'is_primary' => $isPrimary && !$hasPrimary ? 1 : 0,
                 ]);
+
+                // Update category image count
+                $db->execute(
+                    "UPDATE categories SET image_count = image_count + 1 WHERE id = :id",
+                    ['id' => $category['id']]
+                );
             }
         }
     }

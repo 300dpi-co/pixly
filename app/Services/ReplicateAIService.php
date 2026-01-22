@@ -109,9 +109,13 @@ Return ONLY the alt text, no quotes or other text.";
      */
     private function buildAnalysisPrompt(array $existingCategories): string
     {
-        $categoriesList = !empty($existingCategories)
-            ? "Available categories to choose from: " . implode(', ', array_column($existingCategories, 'name'))
-            : "Suggest appropriate category names";
+        $categoryNames = array_column($existingCategories, 'name');
+
+        if (!empty($categoryNames)) {
+            $categoriesList = "IMPORTANT: You MUST choose categories from this exact list (use exact spelling): " . implode(', ', $categoryNames);
+        } else {
+            $categoriesList = "Suggest 1-2 appropriate category names for this image";
+        }
 
         return "Analyze this image and provide comprehensive metadata for an image gallery website.
 
@@ -120,18 +124,18 @@ Return ONLY the alt text, no quotes or other text.";
 Return your analysis in this exact JSON format (no other text before or after):
 {
     \"title\": \"A compelling, SEO-friendly title (5-10 words)\",
-    \"description\": \"A detailed description for SEO (2-3 sentences, 150-200 characters)\",
-    \"alt_text\": \"Accessible alt text (under 125 characters)\",
-    \"caption\": \"A short caption for display (under 100 characters)\",
+    \"description\": \"A detailed description for SEO (2-3 sentences, about 150-200 characters)\",
+    \"alt_text\": \"Accessible alt text describing the image (under 125 characters)\",
+    \"caption\": \"A short engaging caption for display (under 100 characters)\",
     \"tags\": [\"tag1\", \"tag2\", \"tag3\", \"tag4\", \"tag5\", \"tag6\", \"tag7\", \"tag8\"],
-    \"categories\": [\"Primary Category\", \"Secondary Category\"],
+    \"categories\": [\"Category Name\"],
     \"colors\": [\"#hexcode1\", \"#hexcode2\", \"#hexcode3\"],
     \"dominant_color\": \"#hexcode\",
-    \"mood\": \"The overall mood/feeling of the image\",
-    \"style\": \"Photography style (portrait, landscape, macro, etc.)\"
+    \"mood\": \"The overall mood/feeling\",
+    \"style\": \"Photography style\"
 }
 
-Return ONLY the JSON object, nothing else.";
+Return ONLY valid JSON, nothing else.";
     }
 
     /**
