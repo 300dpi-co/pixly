@@ -259,6 +259,16 @@ class MigrationRunner
             $this->addSetting('huggingface_api_key', '', 'encrypted', 'Hugging Face API key for Florence-2 and WD14 tagger');
             $this->markComplete('add_huggingface_settings');
         }
+
+        // Migration: Add AI Horde settings (replaces HuggingFace)
+        if (!$this->hasRun('add_aihorde_settings')) {
+            $this->addSetting('aihorde_api_key', 'ufhznXVornPSdKt9PHIX1Q', 'encrypted', 'AI Horde API key for free image analysis');
+            // Update default provider to aihorde
+            $this->db->execute(
+                "UPDATE settings SET setting_value = 'aihorde' WHERE setting_key = 'ai_provider'"
+            );
+            $this->markComplete('add_aihorde_settings');
+        }
     }
 
     /**

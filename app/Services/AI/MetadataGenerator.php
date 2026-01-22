@@ -6,17 +6,17 @@ namespace App\Services\AI;
 
 use App\Services\ClaudeAIService;
 use App\Services\ReplicateAIService;
-use App\Services\HuggingFaceAIService;
+use App\Services\AIHordeService;
 
 /**
  * Metadata Generator
  *
  * Uses AI to generate SEO-optimized metadata for images.
- * Supports Claude, Replicate (LLaVA), and Hugging Face (Florence-2 + WD14) backends.
+ * Supports AI Horde (free), Claude, and Replicate backends.
  */
 class MetadataGenerator
 {
-    private ClaudeAIService|ReplicateAIService|HuggingFaceAIService $ai;
+    private ClaudeAIService|ReplicateAIService|AIHordeService $ai;
     private string $provider;
     private array $errors = [];
 
@@ -24,8 +24,8 @@ class MetadataGenerator
     {
         $this->provider = $provider ?? $this->getConfiguredProvider();
 
-        if ($this->provider === 'huggingface') {
-            $this->ai = new HuggingFaceAIService();
+        if ($this->provider === 'aihorde') {
+            $this->ai = new AIHordeService();
         } elseif ($this->provider === 'replicate') {
             $this->ai = new ReplicateAIService();
         } else {
@@ -50,10 +50,10 @@ class MetadataGenerator
             // Fall through
         }
 
-        // Check which API key is configured (priority: HuggingFace > Replicate > Claude)
-        $huggingface = new HuggingFaceAIService();
-        if ($huggingface->isConfigured()) {
-            return 'huggingface';
+        // Check which API key is configured (priority: AI Horde > Replicate > Claude)
+        $aihorde = new AIHordeService();
+        if ($aihorde->isConfigured()) {
+            return 'aihorde';
         }
 
         $replicate = new ReplicateAIService();
@@ -99,7 +99,7 @@ class MetadataGenerator
         // Check if AI is configured
         if (!$this->ai->isConfigured()) {
             $providerName = match($this->provider) {
-                'huggingface' => 'Hugging Face',
+                'aihorde' => 'AI Horde',
                 'replicate' => 'Replicate',
                 default => 'Claude',
             };
