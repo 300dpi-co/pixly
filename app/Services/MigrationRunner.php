@@ -262,7 +262,7 @@ class MigrationRunner
 
         // Migration: Add AI Horde settings (replaces HuggingFace)
         if (!$this->hasRun('add_aihorde_settings')) {
-            $this->addSetting('aihorde_api_key', 'ufhznXVornPSdKt9PHIX1Q', 'encrypted', 'AI Horde API key for free image analysis');
+            $this->addSetting('aihorde_api_key', '', 'encrypted', 'AI Horde API key for free image analysis');
             // Update default provider to aihorde
             $this->db->execute(
                 "UPDATE settings SET setting_value = 'aihorde' WHERE setting_key = 'ai_provider'"
