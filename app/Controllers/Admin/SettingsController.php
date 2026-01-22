@@ -66,7 +66,7 @@ class SettingsController extends Controller
         'api' => [
             'label' => 'API Keys',
             'icon' => 'key',
-            'settings' => ['ai_provider', 'claude_api_key', 'replicate_api_key', 'deepseek_api_key', 'deepinfra_api_key', 'unsplash_api_key', 'pexels_api_key'],
+            'settings' => ['ai_provider', 'huggingface_api_key', 'replicate_api_key', 'claude_api_key', 'unsplash_api_key', 'pexels_api_key'],
         ],
         'ads' => [
             'label' => 'Ads',
