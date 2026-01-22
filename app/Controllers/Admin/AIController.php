@@ -8,6 +8,7 @@ use App\Core\Controller;
 use App\Core\Response;
 use App\Services\ClaudeAIService;
 use App\Services\ReplicateAIService;
+use App\Services\HuggingFaceAIService;
 use App\Services\AI\MetadataGenerator;
 
 /**
@@ -31,7 +32,9 @@ class AIController extends Controller
         $provider = $generator->getProvider();
 
         // Check if the current provider is configured
-        if ($provider === 'replicate') {
+        if ($provider === 'huggingface') {
+            $ai = new HuggingFaceAIService();
+        } elseif ($provider === 'replicate') {
             $ai = new ReplicateAIService();
         } else {
             $ai = new ClaudeAIService();
@@ -234,9 +237,16 @@ class AIController extends Controller
         $requiredSettings = [
             [
                 'setting_key' => 'ai_provider',
-                'setting_value' => 'replicate',
+                'setting_value' => 'huggingface',
                 'setting_type' => 'string',
-                'description' => 'AI provider for image analysis (claude or replicate)',
+                'description' => 'AI provider for image analysis (huggingface, replicate, or claude)',
+                'is_public' => 0,
+            ],
+            [
+                'setting_key' => 'huggingface_api_key',
+                'setting_value' => '',
+                'setting_type' => 'encrypted',
+                'description' => 'Hugging Face API key for Florence-2 and WD14 tagger (recommended)',
                 'is_public' => 0,
             ],
             [
