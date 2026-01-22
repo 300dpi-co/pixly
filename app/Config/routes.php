@@ -228,6 +228,7 @@ $router->group(['prefix' => 'admin', 'middleware' => ['auth', 'admin']], functio
     // System
     $router->post('/system/check-update', 'App\Controllers\Admin\SystemController@checkUpdate', ['csrf']);
     $router->post('/system/update', 'App\Controllers\Admin\SystemController@update', ['csrf']);
+    $router->get('/system/debug-update', 'App\Controllers\Admin\SystemController@debugUpdate');
 
     // Trends & Analytics
     $router->get('/trends', 'App\Controllers\Admin\TrendsController@index');

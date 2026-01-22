@@ -163,4 +163,58 @@ class SystemController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Debug update system - shows what the server sees
+     */
+    public function debugUpdate(): Response
+    {
+        $results = [];
+
+        // Current version
+        $results['current_version'] = file_exists(ROOT_PATH . '/VERSION')
+            ? trim(file_get_contents(ROOT_PATH . '/VERSION'))
+            : 'VERSION file not found';
+
+        // Try to fetch status from GitHub
+        $statusUrl = 'https://raw.githubusercontent.com/300dpi-co/pixly/main/remote/status.json';
+
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => 10,
+                'ignore_errors' => true,
+                'header' => "User-Agent: Pixly-Debug/1.0\r\nCache-Control: no-cache",
+            ],
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+            ],
+        ]);
+
+        $response = @file_get_contents($statusUrl . '?t=' . time(), false, $context);
+
+        if ($response === false) {
+            $error = error_get_last();
+            $results['github_fetch'] = 'FAILED: ' . ($error['message'] ?? 'Unknown error');
+            $results['allow_url_fopen'] = ini_get('allow_url_fopen') ? 'enabled' : 'DISABLED';
+        } else {
+            $results['github_fetch'] = 'OK';
+            $results['github_response'] = json_decode($response, true);
+        }
+
+        // Check if update would be available
+        if (isset($results['github_response']['latest_version'])) {
+            $latest = $results['github_response']['latest_version'];
+            $current = $results['current_version'];
+            $results['version_compare'] = version_compare($latest, $current, '>')
+                ? "UPDATE AVAILABLE: {$current} -> {$latest}"
+                : "UP TO DATE: {$current} = {$latest}";
+        }
+
+        // Check file permissions
+        $results['root_writable'] = is_writable(ROOT_PATH) ? 'YES' : 'NO';
+        $results['app_writable'] = is_writable(ROOT_PATH . '/app') ? 'YES' : 'NO';
+
+        return $this->json($results);
+    }
 }
