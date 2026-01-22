@@ -6,8 +6,8 @@ namespace App\Controllers\Admin;
 
 use App\Core\Controller;
 use App\Core\Response;
-use App\Services\UpdateChecker;
 use App\Services\AutoUpdater;
+use App\Services\UpdateChecker;
 
 /**
  * System Controller
@@ -69,25 +69,54 @@ class SystemController extends Controller
     public function update(): Response
     {
         try {
-            $checker = new UpdateChecker();
+            // Try to fetch status directly from GitHub
+            $statusUrl = 'https://raw.githubusercontent.com/300dpi-co/pixly/main/remote/status.json';
 
-            // Force fresh check
-            $checker->clearCache();
-            $checker->silentCheck();
+            $context = stream_context_create([
+                'http' => [
+                    'timeout' => 10,
+                    'ignore_errors' => true,
+                    'header' => 'User-Agent: Pixly-Updater/1.0',
+                ],
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                ],
+            ]);
 
-            $status = $checker->getStatus();
+            $response = @file_get_contents($statusUrl, false, $context);
 
-            if (!$status) {
+            if ($response === false) {
+                $error = error_get_last();
                 return $this->json([
                     'success' => false,
-                    'error' => 'Could not fetch update information',
+                    'error' => 'Could not connect to update server',
+                    'details' => $error['message'] ?? 'Unknown error',
+                    'tip' => 'Check if allow_url_fopen is enabled in PHP',
                 ]);
             }
 
-            if (!$checker->hasUpdate()) {
+            $status = json_decode($response, true);
+
+            if (!$status || !is_array($status)) {
                 return $this->json([
                     'success' => false,
-                    'error' => 'No update available',
+                    'error' => 'Invalid response from update server',
+                    'response' => substr($response, 0, 200),
+                ]);
+            }
+
+            // Check current version
+            $currentVersion = file_exists(ROOT_PATH . '/VERSION')
+                ? trim(file_get_contents(ROOT_PATH . '/VERSION'))
+                : '1.0.0';
+
+            if (!version_compare($status['latest_version'] ?? '0', $currentVersion, '>')) {
+                return $this->json([
+                    'success' => false,
+                    'error' => 'No update available - you have the latest version',
+                    'current' => $currentVersion,
+                    'latest' => $status['latest_version'] ?? 'unknown',
                 ]);
             }
 
@@ -106,19 +135,21 @@ class SystemController extends Controller
             $result = $updater->update($status);
 
             if ($result) {
-                // Clear cache after successful update
-                $checker->clearCache();
+                // Clear update cache
+                $cacheFile = (defined('STORAGE_PATH') ? STORAGE_PATH : ROOT_PATH . '/storage')
+                    . '/cache/update_check.json';
+                @unlink($cacheFile);
 
                 return $this->json([
                     'success' => true,
-                    'message' => 'Update installed successfully',
+                    'message' => 'Update installed successfully! Please refresh the page.',
                     'version' => $status['latest_version'],
                     'log' => $updater->getLog(),
                 ]);
             } else {
                 return $this->json([
                     'success' => false,
-                    'error' => 'Update failed',
+                    'error' => 'Update failed: ' . implode(', ', $updater->getErrors()),
                     'errors' => $updater->getErrors(),
                     'log' => $updater->getLog(),
                 ]);
@@ -128,6 +159,7 @@ class SystemController extends Controller
             return $this->json([
                 'success' => false,
                 'error' => $e->getMessage(),
+                'trace' => config('app.debug', false) ? $e->getTraceAsString() : null,
             ], 500);
         }
     }
