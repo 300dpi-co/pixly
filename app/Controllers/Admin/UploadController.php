@@ -290,17 +290,28 @@ class UploadController extends Controller
         return false;
     }
 
+    private function aiDebugLog(string $message): void
+    {
+        $logFile = ROOT_PATH . '/storage/logs/ai_debug.log';
+        $timestamp = date('Y-m-d H:i:s');
+        file_put_contents($logFile, "[{$timestamp}] [Upload] {$message}\n", FILE_APPEND);
+    }
+
     /**
      * Process image with AI immediately
      * Generates metadata and auto-publishes if moderation approved
      */
     private function processImageAI(int $imageId): void
     {
+        $this->aiDebugLog("processImageAI called for image ID: {$imageId}");
+
         try {
             $generator = new MetadataGenerator();
+            $this->aiDebugLog("MetadataGenerator created, provider: " . $generator->getProvider());
 
             // Process the image - it will check if AI is configured internally
             $success = $generator->processImage($imageId);
+            $this->aiDebugLog("processImage result: " . ($success ? "SUCCESS" : "FAILED"));
 
             $db = $this->db();
 
@@ -314,23 +325,21 @@ class UploadController extends Controller
                 );
             } else {
                 // AI not configured or failed - still publish if moderation approved
+                $errors = $generator->getErrors();
+                $this->aiDebugLog("AI failed, errors: " . implode('; ', $errors));
+
                 $image = $db->fetch("SELECT moderation_status FROM images WHERE id = :id", ['id' => $imageId]);
                 if ($image && $image['moderation_status'] === 'approved') {
                     $db->update('images', [
                         'status' => 'published',
                         'published_at' => date('Y-m-d H:i:s'),
                     ], 'id = :id', ['id' => $imageId]);
-                }
-
-                // Log why AI failed
-                $errors = $generator->getErrors();
-                if (!empty($errors)) {
-                    error_log('AI processing skipped for image ' . $imageId . ': ' . implode('; ', $errors));
+                    $this->aiDebugLog("Published without AI (moderation was approved)");
                 }
             }
         } catch (\Throwable $e) {
             // Log error but don't fail the upload - still publish if approved
-            error_log('AI processing failed for image ' . $imageId . ': ' . $e->getMessage());
+            $this->aiDebugLog("EXCEPTION: " . $e->getMessage());
 
             try {
                 $db = $this->db();

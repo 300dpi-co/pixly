@@ -26,44 +26,66 @@ class HuggingFaceAIService
         $this->apiKey = $this->getApiKey();
     }
 
+    private function debugLog(string $message): void
+    {
+        $logFile = \ROOT_PATH . '/storage/logs/ai_debug.log';
+        $timestamp = date('Y-m-d H:i:s');
+        file_put_contents($logFile, "[{$timestamp}] {$message}\n", FILE_APPEND);
+    }
+
     /**
      * Analyze an image and generate all metadata
      */
     public function analyzeImage(string $imagePath, array $existingCategories = []): array
     {
         $this->errors = [];
+        $this->debugLog("=== Starting AI analysis for: {$imagePath} ===");
 
         if (!$this->isConfigured()) {
+            $this->debugLog("ERROR: API key not configured");
             throw new \RuntimeException('Hugging Face API key not configured');
         }
 
+        $this->debugLog("API key is configured (length: " . strlen($this->apiKey) . ")");
+
         if (!file_exists($imagePath)) {
+            $this->debugLog("ERROR: Image file not found");
             throw new \RuntimeException('Image file not found: ' . $imagePath);
         }
 
         $imageData = file_get_contents($imagePath);
         if ($imageData === false) {
+            $this->debugLog("ERROR: Failed to read image file");
             throw new \RuntimeException('Failed to read image file');
         }
 
+        $this->debugLog("Image loaded, size: " . strlen($imageData) . " bytes");
+
         // Get caption from BLIP
+        $this->debugLog("Calling BLIP for caption...");
         $caption = $this->getCaption($imageData);
+
+        $this->debugLog("BLIP caption result: " . substr($caption, 0, 200));
 
         // Get tags from WD14 (may fail on free API, that's OK)
         $wd14Tags = [];
         try {
+            $this->debugLog("Calling WD14 for tags...");
             $wd14Tags = $this->getWD14Tags($imageData);
+            $this->debugLog("WD14 returned " . count($wd14Tags) . " tags");
         } catch (\Throwable $e) {
-            error_log("WD14 tagger failed (optional): " . $e->getMessage());
+            $this->debugLog("WD14 failed (non-fatal): " . $e->getMessage());
             // Continue without WD14 tags - we'll extract keywords from caption
         }
 
-        // Log for debugging
-        error_log("HuggingFace AI - Caption: " . substr($caption, 0, 100));
-        error_log("HuggingFace AI - Tags count: " . count($wd14Tags));
-
         // Build metadata from combined results
-        return $this->buildMetadata($caption, $wd14Tags, $existingCategories);
+        $this->debugLog("Building metadata...");
+        $result = $this->buildMetadata($caption, $wd14Tags, $existingCategories);
+        $this->debugLog("Generated title: " . ($result['title'] ?? 'none'));
+        $this->debugLog("Generated " . count($result['tags'] ?? []) . " final tags");
+        $this->debugLog("=== AI analysis complete ===");
+
+        return $result;
     }
 
     /**
@@ -190,7 +212,7 @@ class HuggingFaceAIService
     {
         $url = self::API_URL . $model;
 
-        error_log("Calling HuggingFace API: {$model}");
+        $this->debugLog("API Call to: {$url}");
 
         // For image models, send raw image data
         $headers = [
@@ -211,21 +233,20 @@ class HuggingFaceAIService
         $response = @file_get_contents($url, false, $context);
 
         if ($response === false) {
-            error_log("HuggingFace API connection failed for {$model}");
+            $this->debugLog("API connection FAILED for {$model}");
             throw new \RuntimeException("Failed to connect to Hugging Face API for {$model}");
         }
 
-        error_log("HuggingFace API raw response for {$model}: " . substr($response, 0, 500));
+        $this->debugLog("API response (first 500 chars): " . substr($response, 0, 500));
 
         $data = json_decode($response, true);
 
         if (isset($data['error'])) {
-            error_log("HuggingFace API error: " . $data['error']);
+            $this->debugLog("API ERROR: " . $data['error']);
 
             // Check if model is loading
             if (stripos($data['error'], 'loading') !== false) {
-                error_log("Model {$model} is loading, waiting 20s...");
-                // Wait and retry once
+                $this->debugLog("Model is loading, waiting 20s and retrying...");
                 sleep(20);
                 $response = @file_get_contents($url, false, $context);
                 if ($response === false) {
