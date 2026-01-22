@@ -12,9 +12,9 @@ namespace App\Services;
  */
 class HuggingFaceAIService
 {
-    // BLIP is more reliable on free Inference API than Florence-2
-    private const CAPTION_MODEL = 'Salesforce/blip-image-captioning-large';
-    private const WD14_MODEL = 'SmilingWolf/wd-vit-tagger-v3';
+    // Models that work on free Inference API
+    private const CAPTION_MODEL = 'nlpconnect/vit-gpt2-image-captioning';
+    private const CAPTION_MODEL_FALLBACK = 'Salesforce/blip-image-captioning-base';
     private const API_URL = 'https://api-inference.huggingface.co/models/';
     private const TIMEOUT = 120;
 
@@ -61,26 +61,28 @@ class HuggingFaceAIService
 
         $this->debugLog("Image loaded, size: " . strlen($imageData) . " bytes");
 
-        // Get caption from BLIP
-        $this->debugLog("Calling BLIP for caption...");
-        $caption = $this->getCaption($imageData);
+        // Get caption from image captioning model
+        $this->debugLog("Calling caption model...");
+        $caption = '';
 
-        $this->debugLog("BLIP caption result: " . substr($caption, 0, 200));
-
-        // Get tags from WD14 (may fail on free API, that's OK)
-        $wd14Tags = [];
         try {
-            $this->debugLog("Calling WD14 for tags...");
-            $wd14Tags = $this->getWD14Tags($imageData);
-            $this->debugLog("WD14 returned " . count($wd14Tags) . " tags");
+            $caption = $this->getCaption($imageData);
         } catch (\Throwable $e) {
-            $this->debugLog("WD14 failed (non-fatal): " . $e->getMessage());
-            // Continue without WD14 tags - we'll extract keywords from caption
+            $this->debugLog("Primary caption model failed: " . $e->getMessage());
+            // Try fallback model
+            try {
+                $this->debugLog("Trying fallback caption model...");
+                $caption = $this->getCaptionFallback($imageData);
+            } catch (\Throwable $e2) {
+                $this->debugLog("Fallback caption model also failed: " . $e2->getMessage());
+            }
         }
 
-        // Build metadata from combined results
-        $this->debugLog("Building metadata...");
-        $result = $this->buildMetadata($caption, $wd14Tags, $existingCategories);
+        $this->debugLog("Caption result: " . substr($caption, 0, 200));
+
+        // Build metadata from caption (extract tags from caption text)
+        $this->debugLog("Building metadata from caption...");
+        $result = $this->buildMetadata($caption, [], $existingCategories);
         $this->debugLog("Generated title: " . ($result['title'] ?? 'none'));
         $this->debugLog("Generated " . count($result['tags'] ?? []) . " final tags");
         $this->debugLog("=== AI analysis complete ===");
@@ -89,76 +91,47 @@ class HuggingFaceAIService
     }
 
     /**
-     * Get caption from BLIP model
+     * Get caption from primary model (vit-gpt2)
      */
     private function getCaption(string $imageData): string
     {
         $response = $this->callInferenceAPI(self::CAPTION_MODEL, $imageData);
 
-        error_log("BLIP response: " . json_encode($response));
+        $this->debugLog("Caption model response: " . json_encode($response));
 
         if (isset($response[0]['generated_text'])) {
             return $response[0]['generated_text'];
         }
 
-        // Try alternative response format
         if (isset($response['generated_text'])) {
             return $response['generated_text'];
         }
 
-        // Fallback for different model response
         if (is_string($response)) {
             return $response;
         }
 
-        $this->errors[] = 'BLIP returned unexpected format: ' . json_encode($response);
-        return '';
+        throw new \RuntimeException('Caption model returned unexpected format');
     }
 
     /**
-     * Get tags from WD14 Tagger
+     * Get caption from fallback model (BLIP base)
      */
-    private function getWD14Tags(string $imageData): array
+    private function getCaptionFallback(string $imageData): string
     {
-        $response = $this->callInferenceAPI(self::WD14_MODEL, $imageData);
+        $response = $this->callInferenceAPI(self::CAPTION_MODEL_FALLBACK, $imageData);
 
-        error_log("WD14 response: " . json_encode($response));
+        $this->debugLog("Fallback caption response: " . json_encode($response));
 
-        if (!is_array($response)) {
-            $this->errors[] = 'WD14 returned unexpected format: ' . gettype($response);
-            return [];
+        if (isset($response[0]['generated_text'])) {
+            return $response[0]['generated_text'];
         }
 
-        // WD14 returns array of [label => score]
-        $tags = [];
-        foreach ($response as $item) {
-            if (isset($item['label']) && isset($item['score'])) {
-                // Only include tags with confidence > 0.35
-                if ($item['score'] > 0.35) {
-                    $tags[] = [
-                        'name' => $this->cleanTag($item['label']),
-                        'score' => $item['score']
-                    ];
-                }
-            }
+        if (isset($response['generated_text'])) {
+            return $response['generated_text'];
         }
 
-        // Sort by score descending
-        usort($tags, fn($a, $b) => $b['score'] <=> $a['score']);
-
-        return $tags;
-    }
-
-    /**
-     * Clean WD14 tag format
-     */
-    private function cleanTag(string $tag): string
-    {
-        // WD14 uses underscores, convert to spaces
-        $tag = str_replace('_', ' ', $tag);
-        // Remove parentheses content like (medium)
-        $tag = preg_replace('/\s*\([^)]*\)/', '', $tag);
-        return trim($tag);
+        throw new \RuntimeException('Fallback caption model returned unexpected format');
     }
 
     /**
@@ -206,7 +179,7 @@ class HuggingFaceAIService
     }
 
     /**
-     * Call Hugging Face Inference API
+     * Call Hugging Face Inference API using cURL
      */
     private function callInferenceAPI(string $model, string $imageData): mixed
     {
@@ -214,51 +187,60 @@ class HuggingFaceAIService
 
         $this->debugLog("API Call to: {$url}");
 
-        // For image models, send raw image data
-        $headers = [
-            'Authorization: Bearer ' . $this->apiKey,
-            'Content-Type: application/octet-stream',
-        ];
+        if (!function_exists('curl_init')) {
+            throw new \RuntimeException("cURL extension not available");
+        }
 
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'POST',
-                'timeout' => self::TIMEOUT,
-                'ignore_errors' => true,
-                'header' => implode("\r\n", $headers),
-                'content' => $imageData,
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $imageData,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => self::TIMEOUT,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $this->apiKey,
+                'Content-Type: application/octet-stream',
             ],
         ]);
 
-        $response = @file_get_contents($url, false, $context);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        $this->debugLog("HTTP Code: {$httpCode}");
 
         if ($response === false) {
-            $this->debugLog("API connection FAILED for {$model}");
-            throw new \RuntimeException("Failed to connect to Hugging Face API for {$model}");
+            $this->debugLog("cURL error: {$curlError}");
+            throw new \RuntimeException("Failed to connect to Hugging Face API: {$curlError}");
         }
 
         $this->debugLog("API response (first 500 chars): " . substr($response, 0, 500));
 
+        // Check if response is HTML (error page)
+        if (str_starts_with(trim($response), '<!') || str_starts_with(trim($response), '<html')) {
+            $this->debugLog("ERROR: Received HTML instead of JSON - API access denied or model not available");
+            throw new \RuntimeException("Hugging Face API returned HTML - model may not be available on free tier");
+        }
+
         $data = json_decode($response, true);
+
+        if ($data === null && json_last_error() !== JSON_ERROR_NONE) {
+            $this->debugLog("JSON decode error: " . json_last_error_msg());
+            throw new \RuntimeException("Invalid JSON response from API");
+        }
 
         if (isset($data['error'])) {
             $this->debugLog("API ERROR: " . $data['error']);
 
             // Check if model is loading
-            if (stripos($data['error'], 'loading') !== false) {
-                $this->debugLog("Model is loading, waiting 20s and retrying...");
-                sleep(20);
-                $response = @file_get_contents($url, false, $context);
-                if ($response === false) {
-                    throw new \RuntimeException("Model {$model} is still loading, try again later");
-                }
-                $data = json_decode($response, true);
-                if (isset($data['error'])) {
-                    throw new \RuntimeException("Hugging Face API error: " . $data['error']);
-                }
-            } else {
-                throw new \RuntimeException("Hugging Face API error: " . $data['error']);
+            if (stripos($data['error'], 'loading') !== false || stripos($data['error'], 'currently loading') !== false) {
+                $this->debugLog("Model is loading, waiting 30s and retrying...");
+                sleep(30);
+                return $this->callInferenceAPI($model, $imageData); // Retry once
             }
+
+            throw new \RuntimeException("Hugging Face API error: " . $data['error']);
         }
 
         return $data;
