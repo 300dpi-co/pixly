@@ -13,9 +13,9 @@ namespace App\Services;
 class AIHordeService
 {
     private const API_BASE = 'https://stablehorde.net/api/v2';
-    private const TIMEOUT = 120;
-    private const POLL_INTERVAL = 3;
-    private const MAX_ATTEMPTS = 40; // 40 * 3 = 120 seconds max
+    private const TIMEOUT = 30;
+    private const POLL_INTERVAL = 2;
+    private const MAX_ATTEMPTS = 10; // 10 * 2 = 20 seconds max - avoid server timeout
 
     private string $apiKey;
     private array $errors = [];
@@ -41,7 +41,7 @@ class AIHordeService
         $this->debugLog("=== Starting AI Horde analysis ===");
 
         // Increase PHP timeout for async polling
-        set_time_limit(self::TIMEOUT + 30);
+        set_time_limit(self::TIMEOUT + 10);
 
         if (!$this->isConfigured()) {
             $this->debugLog("ERROR: API key not configured");
