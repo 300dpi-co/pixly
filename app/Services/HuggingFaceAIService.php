@@ -12,9 +12,9 @@ namespace App\Services;
  */
 class HuggingFaceAIService
 {
-    // Models that work on free Inference API
-    private const CAPTION_MODEL = 'nlpconnect/vit-gpt2-image-captioning';
-    private const CAPTION_MODEL_FALLBACK = 'Salesforce/blip-image-captioning-base';
+    // Best models for Pro tier
+    private const CAPTION_MODEL = 'Salesforce/blip-image-captioning-large';
+    private const WD14_MODEL = 'SmilingWolf/wd-vit-tagger-v3';
     private const API_URL = 'https://api-inference.huggingface.co/models/';
     private const TIMEOUT = 120;
 
@@ -61,37 +61,42 @@ class HuggingFaceAIService
 
         $this->debugLog("Image loaded, size: " . strlen($imageData) . " bytes");
 
-        // Get caption from image captioning model
-        $this->debugLog("Calling caption model...");
+        // Get caption from BLIP-large
+        $this->debugLog("Calling BLIP caption model...");
         $caption = '';
         $lastError = '';
 
         try {
             $caption = $this->getCaption($imageData);
+            $this->debugLog("Caption result: " . substr($caption, 0, 200));
         } catch (\Throwable $e) {
             $lastError = $e->getMessage();
-            $this->debugLog("Primary caption model failed: " . $lastError);
-            // Try fallback model
-            try {
-                $this->debugLog("Trying fallback caption model...");
-                $caption = $this->getCaptionFallback($imageData);
-            } catch (\Throwable $e2) {
-                $lastError = $e2->getMessage();
-                $this->debugLog("Fallback caption model also failed: " . $lastError);
+            $this->debugLog("Caption model failed: " . $lastError);
+        }
+
+        // Get tags from WD14 tagger (best for adult content)
+        $this->debugLog("Calling WD14 tagger...");
+        $wd14Tags = [];
+
+        try {
+            $wd14Tags = $this->getWD14Tags($imageData);
+            $this->debugLog("WD14 returned " . count($wd14Tags) . " tags");
+        } catch (\Throwable $e) {
+            $this->debugLog("WD14 tagger failed: " . $e->getMessage());
+            if (empty($lastError)) {
+                $lastError = $e->getMessage();
             }
         }
 
-        // If no caption obtained, throw exception so MetadataGenerator can try Replicate
-        if (empty($caption)) {
-            $this->debugLog("No caption obtained - throwing exception for fallback");
+        // If both failed, throw exception for fallback to Replicate
+        if (empty($caption) && empty($wd14Tags)) {
+            $this->debugLog("Both models failed - throwing exception for fallback");
             throw new \RuntimeException("HuggingFace API not available: " . $lastError);
         }
 
-        $this->debugLog("Caption result: " . substr($caption, 0, 200));
-
-        // Build metadata from caption (extract tags from caption text)
-        $this->debugLog("Building metadata from caption...");
-        $result = $this->buildMetadata($caption, [], $existingCategories);
+        // Build metadata from caption and WD14 tags
+        $this->debugLog("Building metadata...");
+        $result = $this->buildMetadata($caption, $wd14Tags, $existingCategories);
         $this->debugLog("Generated title: " . ($result['title'] ?? 'none'));
         $this->debugLog("Generated " . count($result['tags'] ?? []) . " final tags");
         $this->debugLog("=== AI analysis complete ===");
@@ -100,13 +105,13 @@ class HuggingFaceAIService
     }
 
     /**
-     * Get caption from primary model (vit-gpt2)
+     * Get caption from BLIP-large model
      */
     private function getCaption(string $imageData): string
     {
         $response = $this->callInferenceAPI(self::CAPTION_MODEL, $imageData);
 
-        $this->debugLog("Caption model response: " . json_encode($response));
+        $this->debugLog("BLIP response: " . json_encode($response));
 
         if (isset($response[0]['generated_text'])) {
             return $response[0]['generated_text'];
@@ -120,27 +125,52 @@ class HuggingFaceAIService
             return $response;
         }
 
-        throw new \RuntimeException('Caption model returned unexpected format');
+        throw new \RuntimeException('BLIP model returned unexpected format');
     }
 
     /**
-     * Get caption from fallback model (BLIP base)
+     * Get tags from WD14 Tagger v3 (best for adult content)
      */
-    private function getCaptionFallback(string $imageData): string
+    private function getWD14Tags(string $imageData): array
     {
-        $response = $this->callInferenceAPI(self::CAPTION_MODEL_FALLBACK, $imageData);
+        $response = $this->callInferenceAPI(self::WD14_MODEL, $imageData);
 
-        $this->debugLog("Fallback caption response: " . json_encode($response));
+        $this->debugLog("WD14 response type: " . gettype($response));
 
-        if (isset($response[0]['generated_text'])) {
-            return $response[0]['generated_text'];
+        if (!is_array($response)) {
+            throw new \RuntimeException('WD14 returned unexpected format: ' . gettype($response));
         }
 
-        if (isset($response['generated_text'])) {
-            return $response['generated_text'];
+        $tags = [];
+        foreach ($response as $item) {
+            if (isset($item['label']) && isset($item['score'])) {
+                // Only include tags with confidence > 0.35
+                if ($item['score'] > 0.35) {
+                    $tags[] = [
+                        'name' => $this->cleanTag($item['label']),
+                        'score' => $item['score']
+                    ];
+                }
+            }
         }
 
-        throw new \RuntimeException('Fallback caption model returned unexpected format');
+        // Sort by score descending
+        usort($tags, fn($a, $b) => $b['score'] <=> $a['score']);
+
+        $this->debugLog("WD14 filtered tags: " . count($tags));
+        return $tags;
+    }
+
+    /**
+     * Clean WD14 tag format
+     */
+    private function cleanTag(string $tag): string
+    {
+        // WD14 uses underscores, convert to spaces
+        $tag = str_replace('_', ' ', $tag);
+        // Remove parentheses content like (medium)
+        $tag = preg_replace('/\s*\([^)]*\)/', '', $tag);
+        return trim($tag);
     }
 
     /**
