@@ -13,9 +13,9 @@ namespace App\Services;
 class AIHordeService
 {
     private const API_BASE = 'https://stablehorde.net/api/v2';
-    private const TIMEOUT = 30;
-    private const POLL_INTERVAL = 2;
-    private const MAX_ATTEMPTS = 10; // 10 * 2 = 20 seconds max - avoid server timeout
+    private const TIMEOUT = 45;
+    private const POLL_INTERVAL = 3;
+    private const MAX_ATTEMPTS = 12; // 12 * 3 = 36 seconds max
 
     private string $apiKey;
     private array $errors = [];
@@ -44,9 +44,11 @@ class AIHordeService
         set_time_limit(self::TIMEOUT + 10);
 
         if (!$this->isConfigured()) {
-            $this->debugLog("ERROR: API key not configured");
+            $this->debugLog("ERROR: API key not configured. Key length: " . strlen($this->apiKey) . ", Key value: " . ($this->apiKey ?: '(empty)'));
             throw new \RuntimeException('AI Horde API key not configured');
         }
+
+        $this->debugLog("API key configured. First 4 chars: " . substr($this->apiKey, 0, 4));
 
         // Convert local path to public URL
         $imageUrl = $this->getPublicUrl($imagePath);
@@ -180,7 +182,7 @@ class AIHordeService
             $data = json_decode($response, true);
             $state = $data['state'] ?? 'unknown';
 
-            $this->debugLog("Poll attempt {$i}: state={$state}");
+            $this->debugLog("Poll attempt {$i}: state={$state}, raw=" . substr($response, 0, 200));
 
             if ($state === 'done') {
                 // Extract results from forms
