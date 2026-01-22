@@ -325,14 +325,12 @@ Return ONLY valid JSON, no other text or explanation.";
     {
         // Try database setting first
         try {
-            if (function_exists('db')) {
-                $db = db();
-                $result = $db->fetch(
-                    "SELECT setting_value FROM settings WHERE setting_key = 'claude_api_key'"
-                );
-                if ($result && !empty($result['setting_value'])) {
-                    return $result['setting_value'];
-                }
+            $db = \app()->getDatabase();
+            $result = $db->fetch(
+                "SELECT setting_value FROM settings WHERE setting_key = 'claude_api_key'"
+            );
+            if ($result && !empty($result['setting_value'])) {
+                return $result['setting_value'];
             }
         } catch (\Throwable $e) {
             // Fall through to config

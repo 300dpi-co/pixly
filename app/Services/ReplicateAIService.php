@@ -371,21 +371,19 @@ Return ONLY the JSON object, nothing else.";
     {
         // Try database setting first
         try {
-            if (function_exists('db')) {
-                $db = db();
-                $result = $db->fetch(
-                    "SELECT setting_value FROM settings WHERE setting_key = 'replicate_api_key'"
-                );
+            $db = \app()->getDatabase();
+            $result = $db->fetch(
+                "SELECT setting_value FROM settings WHERE setting_key = 'replicate_api_key'"
+            );
 
-                // Auto-create setting if it doesn't exist
-                if (!$result) {
-                    $this->ensureSettingsExist($db);
-                    return '';
-                }
+            // Auto-create setting if it doesn't exist
+            if (!$result) {
+                $this->ensureSettingsExist($db);
+                return '';
+            }
 
-                if (!empty($result['setting_value'])) {
-                    return $result['setting_value'];
-                }
+            if (!empty($result['setting_value'])) {
+                return $result['setting_value'];
             }
         } catch (\Throwable $e) {
             // Fall through to config

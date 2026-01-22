@@ -36,14 +36,12 @@ class MetadataGenerator
     private function getConfiguredProvider(): string
     {
         try {
-            if (function_exists('db')) {
-                $db = db();
-                $result = $db->fetch(
-                    "SELECT setting_value FROM settings WHERE setting_key = 'ai_provider'"
-                );
-                if ($result && !empty($result['setting_value'])) {
-                    return $result['setting_value'];
-                }
+            $db = \app()->getDatabase();
+            $result = $db->fetch(
+                "SELECT setting_value FROM settings WHERE setting_key = 'ai_provider'"
+            );
+            if ($result && !empty($result['setting_value'])) {
+                return $result['setting_value'];
             }
         } catch (\Throwable $e) {
             // Fall through

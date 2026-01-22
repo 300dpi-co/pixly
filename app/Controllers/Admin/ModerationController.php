@@ -303,23 +303,45 @@ class ModerationController extends Controller
         try {
             $generator = new MetadataGenerator();
 
-            if (!$generator->getProvider()) {
-                return; // AI not configured
-            }
-
+            // Process the image - it will check if AI is configured internally
             $success = $generator->processImage($imageId);
 
+            $db = $this->db();
+
             if ($success) {
-                $db = $this->db();
+                // Mark queue item as completed
                 $db->update(
                     'ai_processing_queue',
                     ['status' => 'completed', 'completed_at' => date('Y-m-d H:i:s')],
                     'image_id = :image_id AND status IN (:s1, :s2)',
                     ['image_id' => $imageId, 's1' => 'pending', 's2' => 'processing']
                 );
+            } else {
+                // AI not configured or failed - still publish since moderation approved
+                $db->update('images', [
+                    'status' => 'published',
+                    'published_at' => date('Y-m-d H:i:s'),
+                ], 'id = :id AND moderation_status = :ms', ['id' => $imageId, 'ms' => 'approved']);
+
+                // Log why AI failed
+                $errors = $generator->getErrors();
+                if (!empty($errors)) {
+                    error_log('AI processing skipped for image ' . $imageId . ': ' . implode('; ', $errors));
+                }
             }
         } catch (\Throwable $e) {
+            // Log error but still publish since moderation approved
             error_log('AI processing failed for image ' . $imageId . ': ' . $e->getMessage());
+
+            try {
+                $db = $this->db();
+                $db->update('images', [
+                    'status' => 'published',
+                    'published_at' => date('Y-m-d H:i:s'),
+                ], 'id = :id AND moderation_status = :ms', ['id' => $imageId, 'ms' => 'approved']);
+            } catch (\Throwable $e2) {
+                // Ignore
+            }
         }
     }
 }

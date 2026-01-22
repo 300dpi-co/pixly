@@ -299,27 +299,51 @@ class UploadController extends Controller
         try {
             $generator = new MetadataGenerator();
 
-            // Check if AI is configured
-            if (!$generator->getProvider()) {
-                return; // AI not configured, skip
-            }
-
-            // Process the image
+            // Process the image - it will check if AI is configured internally
             $success = $generator->processImage($imageId);
+
+            $db = $this->db();
 
             if ($success) {
                 // Mark queue item as completed
-                $db = $this->db();
                 $db->update(
                     'ai_processing_queue',
                     ['status' => 'completed', 'completed_at' => date('Y-m-d H:i:s')],
-                    'image_id = :image_id AND status = :status',
-                    ['image_id' => $imageId, 'status' => 'pending']
+                    'image_id = :image_id AND status IN (:s1, :s2)',
+                    ['image_id' => $imageId, 's1' => 'pending', 's2' => 'processing']
                 );
+            } else {
+                // AI not configured or failed - still publish if moderation approved
+                $image = $db->fetch("SELECT moderation_status FROM images WHERE id = :id", ['id' => $imageId]);
+                if ($image && $image['moderation_status'] === 'approved') {
+                    $db->update('images', [
+                        'status' => 'published',
+                        'published_at' => date('Y-m-d H:i:s'),
+                    ], 'id = :id', ['id' => $imageId]);
+                }
+
+                // Log why AI failed
+                $errors = $generator->getErrors();
+                if (!empty($errors)) {
+                    error_log('AI processing skipped for image ' . $imageId . ': ' . implode('; ', $errors));
+                }
             }
         } catch (\Throwable $e) {
-            // Log error but don't fail the upload
+            // Log error but don't fail the upload - still publish if approved
             error_log('AI processing failed for image ' . $imageId . ': ' . $e->getMessage());
+
+            try {
+                $db = $this->db();
+                $image = $db->fetch("SELECT moderation_status FROM images WHERE id = :id", ['id' => $imageId]);
+                if ($image && $image['moderation_status'] === 'approved') {
+                    $db->update('images', [
+                        'status' => 'published',
+                        'published_at' => date('Y-m-d H:i:s'),
+                    ], 'id = :id', ['id' => $imageId]);
+                }
+            } catch (\Throwable $e2) {
+                // Ignore
+            }
         }
     }
 }
