@@ -796,7 +796,7 @@
                 </script>
 
             <?php elseif ($activeGroup === 'api'): ?>
-                <!-- API Keys Settings - Custom UI -->
+                <!-- API Keys Settings - Custom UI with Toggle Switches -->
                 <?php
                 $apiSettings = [];
                 foreach ($currentGroup['settings'] as $s) {
@@ -810,121 +810,107 @@
                     <input type="hidden" name="_group" value="api">
 
                     <div class="space-y-6">
-                        <!-- AI Provider Selection -->
-                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                             <p class="text-sm text-blue-800">
-                                <strong>AI Provider:</strong> Select which AI service to use for image analysis. Only the selected provider's API key is required.
+                                <strong>AI Providers:</strong> Enable the providers you want to use. The first enabled provider with a valid API key will be used for image analysis.
                             </p>
                         </div>
 
-                        <div class="mb-6">
-                            <label class="block text-sm font-medium text-neutral-700 mb-3">Active AI Provider</label>
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                <!-- Hugging Face -->
-                                <label class="cursor-pointer">
-                                    <input type="radio" name="ai_provider" value="huggingface" class="sr-only peer" <?= $currentProvider === 'huggingface' ? 'checked' : '' ?>>
-                                    <div class="border-2 rounded-lg p-4 transition peer-checked:border-primary-500 peer-checked:bg-primary-50 border-neutral-200 hover:border-neutral-300">
-                                        <div class="flex items-center gap-3 mb-2">
-                                            <div class="w-8 h-8 rounded bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-white text-xs font-bold">HF</div>
-                                            <span class="font-medium">Hugging Face</span>
-                                            <span class="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded">Recommended</span>
-                                        </div>
-                                        <p class="text-sm text-neutral-600">Florence-2 + WD14 tagger. Best for adult content with detailed tags.</p>
+                        <!-- Hugging Face -->
+                        <div class="border rounded-lg p-4" id="hf-section">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-white font-bold">HF</div>
+                                    <div>
+                                        <span class="font-medium text-neutral-900">Hugging Face</span>
+                                        <span class="ml-2 text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded">Recommended</span>
+                                        <p class="text-sm text-neutral-500">Florence-2 + WD14 tagger for adult content</p>
                                     </div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="hidden" name="ai_provider_huggingface" value="0">
+                                    <input type="checkbox" name="ai_provider_huggingface" value="1" class="sr-only peer" <?= $currentProvider === 'huggingface' ? 'checked' : '' ?> onchange="updateProvider(this, 'huggingface')">
+                                    <div class="w-11 h-6 bg-neutral-200 peer-focus:ring-2 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
                                 </label>
-
-                                <!-- Replicate -->
-                                <label class="cursor-pointer">
-                                    <input type="radio" name="ai_provider" value="replicate" class="sr-only peer" <?= $currentProvider === 'replicate' ? 'checked' : '' ?>>
-                                    <div class="border-2 rounded-lg p-4 transition peer-checked:border-primary-500 peer-checked:bg-primary-50 border-neutral-200 hover:border-neutral-300">
-                                        <div class="flex items-center gap-3 mb-2">
-                                            <div class="w-8 h-8 rounded bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">R</div>
-                                            <span class="font-medium">Replicate</span>
-                                        </div>
-                                        <p class="text-sm text-neutral-600">LLaVA model. Good general-purpose image analysis.</p>
-                                    </div>
-                                </label>
-
-                                <!-- Claude -->
-                                <label class="cursor-pointer">
-                                    <input type="radio" name="ai_provider" value="claude" class="sr-only peer" <?= $currentProvider === 'claude' ? 'checked' : '' ?>>
-                                    <div class="border-2 rounded-lg p-4 transition peer-checked:border-primary-500 peer-checked:bg-primary-50 border-neutral-200 hover:border-neutral-300">
-                                        <div class="flex items-center gap-3 mb-2">
-                                            <div class="w-8 h-8 rounded bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white text-xs font-bold">C</div>
-                                            <span class="font-medium">Claude</span>
-                                        </div>
-                                        <p class="text-sm text-neutral-600">Anthropic Claude. High quality but may refuse adult content.</p>
-                                    </div>
-                                </label>
+                            </div>
+                            <div class="mt-3">
+                                <input type="text" name="huggingface_api_key" value=""
+                                       placeholder="<?= !empty($apiSettings['huggingface_api_key']) ? '••••••••' : 'hf_...' ?>"
+                                       class="w-full px-3 py-2 border rounded-lg font-mono text-sm">
+                                <div class="flex items-center justify-between mt-1">
+                                    <p class="text-xs text-neutral-500">Get from <a href="https://huggingface.co/settings/tokens" target="_blank" class="text-primary-600 hover:underline">huggingface.co/settings/tokens</a></p>
+                                    <?php if (!empty($apiSettings['huggingface_api_key'])): ?>
+                                        <span class="text-xs text-green-600 font-medium">Key configured</span>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="border-t pt-6">
-                            <h3 class="text-lg font-medium text-neutral-900 mb-4">API Keys</h3>
-                            <p class="text-sm text-neutral-600 mb-4">Enter the API key for your selected provider. Other keys are optional backups.</p>
-
-                            <div class="space-y-4">
-                                <!-- Hugging Face API Key -->
-                                <div class="border rounded-lg p-4 <?= $currentProvider === 'huggingface' ? 'border-primary-300 bg-primary-50/30' : '' ?>">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <label class="font-medium text-neutral-800">Hugging Face API Key</label>
-                                        <?php if (!empty($apiSettings['huggingface_api_key'])): ?>
-                                            <span class="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 rounded text-xs">
-                                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                                Configured
-                                            </span>
-                                        <?php else: ?>
-                                            <span class="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">Not set</span>
-                                        <?php endif; ?>
+                        <!-- Replicate -->
+                        <div class="border rounded-lg p-4" id="replicate-section">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white font-bold">R</div>
+                                    <div>
+                                        <span class="font-medium text-neutral-900">Replicate</span>
+                                        <p class="text-sm text-neutral-500">LLaVA model for general image analysis</p>
                                     </div>
-                                    <input type="text" name="huggingface_api_key" value="" placeholder="<?= !empty($apiSettings['huggingface_api_key']) ? 'Enter new key to replace' : 'hf_...' ?>"
-                                           class="w-full px-3 py-2 border rounded-lg font-mono text-sm">
-                                    <p class="text-xs text-neutral-500 mt-1">Get from <a href="https://huggingface.co/settings/tokens" target="_blank" class="text-primary-600 hover:underline">huggingface.co/settings/tokens</a></p>
                                 </div>
-
-                                <!-- Replicate API Key -->
-                                <div class="border rounded-lg p-4 <?= $currentProvider === 'replicate' ? 'border-primary-300 bg-primary-50/30' : '' ?>">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <label class="font-medium text-neutral-800">Replicate API Key</label>
-                                        <?php if (!empty($apiSettings['replicate_api_key'])): ?>
-                                            <span class="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 rounded text-xs">
-                                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                                Configured
-                                            </span>
-                                        <?php else: ?>
-                                            <span class="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">Not set</span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <input type="text" name="replicate_api_key" value="" placeholder="<?= !empty($apiSettings['replicate_api_key']) ? 'Enter new key to replace' : 'r8_...' ?>"
-                                           class="w-full px-3 py-2 border rounded-lg font-mono text-sm">
-                                    <p class="text-xs text-neutral-500 mt-1">Get from <a href="https://replicate.com/account/api-tokens" target="_blank" class="text-primary-600 hover:underline">replicate.com/account/api-tokens</a></p>
-                                </div>
-
-                                <!-- Claude API Key -->
-                                <div class="border rounded-lg p-4 <?= $currentProvider === 'claude' ? 'border-primary-300 bg-primary-50/30' : '' ?>">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <label class="font-medium text-neutral-800">Claude API Key</label>
-                                        <?php if (!empty($apiSettings['claude_api_key'])): ?>
-                                            <span class="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 rounded text-xs">
-                                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                                Configured
-                                            </span>
-                                        <?php else: ?>
-                                            <span class="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">Not set</span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <input type="text" name="claude_api_key" value="" placeholder="<?= !empty($apiSettings['claude_api_key']) ? 'Enter new key to replace' : 'sk-ant-...' ?>"
-                                           class="w-full px-3 py-2 border rounded-lg font-mono text-sm">
-                                    <p class="text-xs text-neutral-500 mt-1">Get from <a href="https://console.anthropic.com/api-keys" target="_blank" class="text-primary-600 hover:underline">console.anthropic.com</a></p>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="hidden" name="ai_provider_replicate" value="0">
+                                    <input type="checkbox" name="ai_provider_replicate" value="1" class="sr-only peer" <?= $currentProvider === 'replicate' ? 'checked' : '' ?> onchange="updateProvider(this, 'replicate')">
+                                    <div class="w-11 h-6 bg-neutral-200 peer-focus:ring-2 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                                </label>
+                            </div>
+                            <div class="mt-3">
+                                <input type="text" name="replicate_api_key" value=""
+                                       placeholder="<?= !empty($apiSettings['replicate_api_key']) ? '••••••••' : 'r8_...' ?>"
+                                       class="w-full px-3 py-2 border rounded-lg font-mono text-sm">
+                                <div class="flex items-center justify-between mt-1">
+                                    <p class="text-xs text-neutral-500">Get from <a href="https://replicate.com/account/api-tokens" target="_blank" class="text-primary-600 hover:underline">replicate.com/account/api-tokens</a></p>
+                                    <?php if (!empty($apiSettings['replicate_api_key'])): ?>
+                                        <span class="text-xs text-green-600 font-medium">Key configured</span>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Claude -->
+                        <div class="border rounded-lg p-4" id="claude-section">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-bold">C</div>
+                                    <div>
+                                        <span class="font-medium text-neutral-900">Claude</span>
+                                        <p class="text-sm text-neutral-500">High quality but may refuse adult content</p>
+                                    </div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="hidden" name="ai_provider_claude" value="0">
+                                    <input type="checkbox" name="ai_provider_claude" value="1" class="sr-only peer" <?= $currentProvider === 'claude' ? 'checked' : '' ?> onchange="updateProvider(this, 'claude')">
+                                    <div class="w-11 h-6 bg-neutral-200 peer-focus:ring-2 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                                </label>
+                            </div>
+                            <div class="mt-3">
+                                <input type="text" name="claude_api_key" value=""
+                                       placeholder="<?= !empty($apiSettings['claude_api_key']) ? '••••••••' : 'sk-ant-...' ?>"
+                                       class="w-full px-3 py-2 border rounded-lg font-mono text-sm">
+                                <div class="flex items-center justify-between mt-1">
+                                    <p class="text-xs text-neutral-500">Get from <a href="https://console.anthropic.com/api-keys" target="_blank" class="text-primary-600 hover:underline">console.anthropic.com</a></p>
+                                    <?php if (!empty($apiSettings['claude_api_key'])): ?>
+                                        <span class="text-xs text-green-600 font-medium">Key configured</span>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hidden field for actual ai_provider value -->
+                        <input type="hidden" name="ai_provider" id="ai_provider_value" value="<?= e($currentProvider) ?>">
 
                         <!-- Other API Keys -->
                         <?php if (!empty($apiSettings['unsplash_api_key']) || !empty($apiSettings['pexels_api_key']) || isset($apiSettings['unsplash_api_key'])): ?>
                         <div class="border-t pt-6">
                             <h3 class="text-lg font-medium text-neutral-900 mb-4">Other API Keys</h3>
-
                             <?php foreach ($currentGroup['settings'] as $setting): ?>
                                 <?php if (in_array($setting['setting_key'], ['unsplash_api_key', 'pexels_api_key'])): ?>
                                 <div class="mb-4">
@@ -932,11 +918,8 @@
                                         <?= e(ucwords(str_replace('_', ' ', $setting['setting_key']))) ?>
                                     </label>
                                     <input type="text" name="<?= e($setting['setting_key']) ?>" value=""
-                                           placeholder="<?= $setting['setting_value'] ? 'Enter new key to replace' : 'Enter API key' ?>"
+                                           placeholder="<?= $setting['setting_value'] ? '••••••••' : 'Enter API key' ?>"
                                            class="w-full px-3 py-2 border rounded-lg font-mono text-sm">
-                                    <?php if ($setting['description']): ?>
-                                        <p class="text-xs text-neutral-500 mt-1"><?= e($setting['description']) ?></p>
-                                    <?php endif; ?>
                                 </div>
                                 <?php endif; ?>
                             <?php endforeach; ?>
@@ -950,6 +933,44 @@
                         </button>
                     </div>
                 </form>
+
+                <script>
+                function updateProvider(checkbox, provider) {
+                    // Only one provider can be active at a time
+                    if (checkbox.checked) {
+                        // Uncheck all other providers
+                        document.querySelectorAll('input[name^="ai_provider_"]').forEach(cb => {
+                            if (cb !== checkbox && cb.type === 'checkbox') {
+                                cb.checked = false;
+                            }
+                        });
+                        // Update the hidden field
+                        document.getElementById('ai_provider_value').value = provider;
+
+                        // Update visual states
+                        document.querySelectorAll('[id$="-section"]').forEach(section => {
+                            section.classList.remove('border-primary-300', 'bg-primary-50/30');
+                        });
+                        document.getElementById(provider === 'huggingface' ? 'hf' : provider + '-section').classList.add('border-primary-300', 'bg-primary-50/30');
+                    } else {
+                        // If unchecking, default to huggingface
+                        document.querySelector('input[name="ai_provider_huggingface"][type="checkbox"]').checked = true;
+                        document.getElementById('ai_provider_value').value = 'huggingface';
+
+                        document.querySelectorAll('[id$="-section"]').forEach(section => {
+                            section.classList.remove('border-primary-300', 'bg-primary-50/30');
+                        });
+                        document.getElementById('hf-section').classList.add('border-primary-300', 'bg-primary-50/30');
+                    }
+                }
+
+                // Set initial visual state
+                document.addEventListener('DOMContentLoaded', function() {
+                    const currentProvider = document.getElementById('ai_provider_value').value;
+                    const sectionId = currentProvider === 'huggingface' ? 'hf-section' : currentProvider + '-section';
+                    document.getElementById(sectionId)?.classList.add('border-primary-300', 'bg-primary-50/30');
+                });
+                </script>
 
             <?php elseif (empty($currentGroup['settings'])): ?>
                 <div class="p-12 text-center">
