@@ -7,15 +7,15 @@ namespace App\Services;
 /**
  * Hugging Face AI Service
  *
- * Uses BLIP for captions and WD14 Tagger for NSFW tags.
- * Cost-effective solution for adult image galleries.
+ * Uses WD Tagger Space API for adult content tagging.
+ * The Inference API doesn't deploy these models, so we use the Gradio Space directly.
  */
 class HuggingFaceAIService
 {
-    // Best models for Pro tier
-    private const CAPTION_MODEL = 'Salesforce/blip-image-captioning-large';
-    private const WD14_MODEL = 'SmilingWolf/wd-vit-tagger-v3';
-    private const API_URL = 'https://api-inference.huggingface.co/models/';
+    // WD Tagger Space URL (Gradio-based)
+    private const WD_TAGGER_SPACE = 'https://smilingwolf-wd-tagger.hf.space';
+    // Best WD14 model for v3 dataset
+    private const WD14_MODEL = 'SmilingWolf/wd-vit-large-tagger-v3';
     private const TIMEOUT = 120;
 
     private string $apiKey;
@@ -53,50 +53,33 @@ class HuggingFaceAIService
             throw new \RuntimeException('Image file not found: ' . $imagePath);
         }
 
-        $imageData = file_get_contents($imagePath);
-        if ($imageData === false) {
-            $this->debugLog("ERROR: Failed to read image file");
-            throw new \RuntimeException('Failed to read image file');
-        }
-
-        $this->debugLog("Image loaded, size: " . strlen($imageData) . " bytes");
-
-        // Get caption from BLIP-large
-        $this->debugLog("Calling BLIP caption model...");
-        $caption = '';
+        // Get tags from WD14 tagger via Gradio Space API (best for adult content)
+        $this->debugLog("Calling WD14 tagger via Gradio Space API...");
+        $wd14Tags = [];
+        $rating = [];
         $lastError = '';
 
         try {
-            $caption = $this->getCaption($imageData);
-            $this->debugLog("Caption result: " . substr($caption, 0, 200));
+            $result = $this->getWD14TagsViaSpace($imagePath);
+            $wd14Tags = $result['tags'];
+            $rating = $result['rating'];
+            $this->debugLog("WD14 returned " . count($wd14Tags) . " tags");
+            $this->debugLog("Rating: " . json_encode($rating));
         } catch (\Throwable $e) {
             $lastError = $e->getMessage();
-            $this->debugLog("Caption model failed: " . $lastError);
+            $this->debugLog("WD14 tagger failed: " . $lastError);
         }
 
-        // Get tags from WD14 tagger (best for adult content)
-        $this->debugLog("Calling WD14 tagger...");
-        $wd14Tags = [];
-
-        try {
-            $wd14Tags = $this->getWD14Tags($imageData);
-            $this->debugLog("WD14 returned " . count($wd14Tags) . " tags");
-        } catch (\Throwable $e) {
-            $this->debugLog("WD14 tagger failed: " . $e->getMessage());
-            if (empty($lastError)) {
-                $lastError = $e->getMessage();
-            }
+        // If WD14 failed, throw exception
+        if (empty($wd14Tags)) {
+            $this->debugLog("WD14 tagger failed - throwing exception");
+            throw new \RuntimeException("HuggingFace WD Tagger not available: " . $lastError);
         }
 
-        // If both failed, throw exception for fallback to Replicate
-        if (empty($caption) && empty($wd14Tags)) {
-            $this->debugLog("Both models failed - throwing exception for fallback");
-            throw new \RuntimeException("HuggingFace API not available: " . $lastError);
-        }
-
-        // Build metadata from caption and WD14 tags
-        $this->debugLog("Building metadata...");
-        $result = $this->buildMetadata($caption, $wd14Tags, $existingCategories);
+        // Build metadata from WD14 tags (caption generated from tags)
+        $this->debugLog("Building metadata from tags...");
+        $result = $this->buildMetadata('', $wd14Tags, $existingCategories);
+        $result['rating'] = $rating;
         $this->debugLog("Generated title: " . ($result['title'] ?? 'none'));
         $this->debugLog("Generated " . count($result['tags'] ?? []) . " final tags");
         $this->debugLog("=== AI analysis complete ===");
@@ -105,60 +88,229 @@ class HuggingFaceAIService
     }
 
     /**
-     * Get caption from BLIP-large model
+     * Get tags from WD14 Tagger via Gradio Space API
+     * This uses the HuggingFace Space directly since the model isn't deployed on the Inference API
      */
-    private function getCaption(string $imageData): string
+    private function getWD14TagsViaSpace(string $imagePath): array
     {
-        $response = $this->callInferenceAPI(self::CAPTION_MODEL, $imageData);
+        // Step 1: Upload image to the Space
+        $this->debugLog("Uploading image to WD Tagger Space...");
+        $uploadedPath = $this->uploadImageToSpace($imagePath);
 
-        $this->debugLog("BLIP response: " . json_encode($response));
-
-        if (isset($response[0]['generated_text'])) {
-            return $response[0]['generated_text'];
+        if (!$uploadedPath) {
+            throw new \RuntimeException('Failed to upload image to WD Tagger Space');
         }
 
-        if (isset($response['generated_text'])) {
-            return $response['generated_text'];
+        $this->debugLog("Image uploaded, path: " . $uploadedPath);
+
+        // Step 2: Call the predict endpoint
+        $this->debugLog("Calling predict endpoint...");
+        $predictUrl = self::WD_TAGGER_SPACE . '/call/predict';
+
+        // Prepare the request data
+        // Parameters: image, model_repo, general_thresh, general_mcut, character_thresh, character_mcut
+        $requestData = [
+            'data' => [
+                ['path' => $uploadedPath],  // Image reference
+                self::WD14_MODEL,            // Model to use
+                0.35,                        // General threshold
+                false,                       // General MCut disabled
+                0.85,                        // Character threshold
+                false,                       // Character MCut disabled
+            ]
+        ];
+
+        $this->debugLog("Request data: " . json_encode($requestData));
+
+        $ch = curl_init($predictUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($requestData),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => self::TIMEOUT,
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $this->apiKey,
+            ],
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        $this->debugLog("Predict HTTP Code: {$httpCode}");
+        $this->debugLog("Predict Response: " . substr($response, 0, 500));
+
+        if ($response === false) {
+            throw new \RuntimeException("Failed to connect to WD Tagger Space: {$curlError}");
         }
 
-        if (is_string($response)) {
-            return $response;
+        $data = json_decode($response, true);
+
+        if (!isset($data['event_id'])) {
+            $this->debugLog("No event_id in response: " . $response);
+            throw new \RuntimeException('WD Tagger Space returned unexpected response');
         }
 
-        throw new \RuntimeException('BLIP model returned unexpected format');
+        // Step 3: Fetch results using event_id
+        $eventId = $data['event_id'];
+        $this->debugLog("Got event_id: {$eventId}, fetching results...");
+
+        $resultUrl = self::WD_TAGGER_SPACE . '/call/predict/' . $eventId;
+
+        $ch = curl_init($resultUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => self::TIMEOUT,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $this->apiKey,
+            ],
+        ]);
+
+        $resultResponse = curl_exec($ch);
+        $resultHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        $this->debugLog("Result HTTP Code: {$resultHttpCode}");
+        $this->debugLog("Result Response: " . substr($resultResponse, 0, 1000));
+
+        // Parse SSE response format
+        return $this->parseSpaceResponse($resultResponse);
     }
 
     /**
-     * Get tags from WD14 Tagger v3 (best for adult content)
+     * Upload image to the WD Tagger Space
      */
-    private function getWD14Tags(string $imageData): array
+    private function uploadImageToSpace(string $imagePath): ?string
     {
-        $response = $this->callInferenceAPI(self::WD14_MODEL, $imageData);
+        $uploadUrl = self::WD_TAGGER_SPACE . '/upload';
 
-        $this->debugLog("WD14 response type: " . gettype($response));
-
-        if (!is_array($response)) {
-            throw new \RuntimeException('WD14 returned unexpected format: ' . gettype($response));
+        // Read the image file
+        $imageData = file_get_contents($imagePath);
+        if ($imageData === false) {
+            $this->debugLog("Failed to read image file");
+            return null;
         }
 
+        // Get mime type
+        $mimeType = mime_content_type($imagePath) ?: 'image/jpeg';
+        $filename = basename($imagePath);
+
+        // Create multipart form data
+        $boundary = '----WebKitFormBoundary' . bin2hex(random_bytes(16));
+
+        $body = "--{$boundary}\r\n";
+        $body .= "Content-Disposition: form-data; name=\"files\"; filename=\"{$filename}\"\r\n";
+        $body .= "Content-Type: {$mimeType}\r\n\r\n";
+        $body .= $imageData . "\r\n";
+        $body .= "--{$boundary}--\r\n";
+
+        $ch = curl_init($uploadUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $body,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 60,
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: multipart/form-data; boundary=' . $boundary,
+                'Authorization: Bearer ' . $this->apiKey,
+            ],
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        $this->debugLog("Upload HTTP Code: {$httpCode}");
+        $this->debugLog("Upload Response: " . $response);
+
+        if ($response === false || $httpCode !== 200) {
+            $this->debugLog("Upload failed: " . ($curlError ?: "HTTP {$httpCode}"));
+            return null;
+        }
+
+        $data = json_decode($response, true);
+
+        // Response format: [{"path": "...", "url": "...", ...}]
+        if (is_array($data) && !empty($data[0]['path'])) {
+            return $data[0]['path'];
+        }
+
+        // Alternative response format
+        if (is_array($data) && !empty($data['path'])) {
+            return $data['path'];
+        }
+
+        $this->debugLog("Unexpected upload response format");
+        return null;
+    }
+
+    /**
+     * Parse Gradio Space SSE response
+     */
+    private function parseSpaceResponse(string $response): array
+    {
         $tags = [];
-        foreach ($response as $item) {
-            if (isset($item['label']) && isset($item['score'])) {
-                // Only include tags with confidence > 0.35
-                if ($item['score'] > 0.35) {
-                    $tags[] = [
-                        'name' => $this->cleanTag($item['label']),
-                        'score' => $item['score']
-                    ];
+        $rating = [];
+
+        // Parse SSE format - look for "event: complete" and "data: ..."
+        $lines = explode("\n", $response);
+        $isComplete = false;
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+
+            if ($line === 'event: complete') {
+                $isComplete = true;
+                continue;
+            }
+
+            if ($isComplete && str_starts_with($line, 'data: ')) {
+                $jsonStr = substr($line, 6);
+                $data = json_decode($jsonStr, true);
+
+                if (is_array($data) && count($data) >= 4) {
+                    // Format: [sorted_tags_string, rating_dict, character_dict, general_dict]
+                    $sortedTagsStr = $data[0] ?? '';
+                    $ratingDict = $data[1] ?? [];
+                    $generalDict = $data[3] ?? [];
+
+                    // Parse rating
+                    $rating = $ratingDict;
+
+                    // Parse general tags (dict with tag => score)
+                    if (is_array($generalDict)) {
+                        foreach ($generalDict as $tagName => $score) {
+                            if ($score > 0.35) {
+                                $tags[] = [
+                                    'name' => $this->cleanTag($tagName),
+                                    'score' => $score,
+                                ];
+                            }
+                        }
+                    }
+
+                    // Sort by score descending
+                    usort($tags, fn($a, $b) => $b['score'] <=> $a['score']);
+
+                    $this->debugLog("Parsed " . count($tags) . " tags from Space response");
+                    break;
                 }
+            }
+
+            // Check for error event
+            if (str_starts_with($line, 'event: error')) {
+                $this->debugLog("Space returned error event");
+                throw new \RuntimeException('WD Tagger Space returned an error');
             }
         }
 
-        // Sort by score descending
-        usort($tags, fn($a, $b) => $b['score'] <=> $a['score']);
-
-        $this->debugLog("WD14 filtered tags: " . count($tags));
-        return $tags;
+        return [
+            'tags' => $tags,
+            'rating' => $rating,
+        ];
     }
 
     /**
@@ -218,75 +370,7 @@ class HuggingFaceAIService
     }
 
     /**
-     * Call Hugging Face Inference API using cURL
-     */
-    private function callInferenceAPI(string $model, string $imageData): mixed
-    {
-        $url = self::API_URL . $model;
-
-        $this->debugLog("API Call to: {$url}");
-
-        if (!function_exists('curl_init')) {
-            throw new \RuntimeException("cURL extension not available");
-        }
-
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $imageData,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => self::TIMEOUT,
-            CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer ' . $this->apiKey,
-                'Content-Type: application/octet-stream',
-            ],
-        ]);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
-
-        $this->debugLog("HTTP Code: {$httpCode}");
-
-        if ($response === false) {
-            $this->debugLog("cURL error: {$curlError}");
-            throw new \RuntimeException("Failed to connect to Hugging Face API: {$curlError}");
-        }
-
-        $this->debugLog("API response (first 500 chars): " . substr($response, 0, 500));
-
-        // Check if response is HTML (error page)
-        if (str_starts_with(trim($response), '<!') || str_starts_with(trim($response), '<html')) {
-            $this->debugLog("ERROR: Received HTML instead of JSON - API access denied or model not available");
-            throw new \RuntimeException("Hugging Face API returned HTML - model may not be available on free tier");
-        }
-
-        $data = json_decode($response, true);
-
-        if ($data === null && json_last_error() !== JSON_ERROR_NONE) {
-            $this->debugLog("JSON decode error: " . json_last_error_msg());
-            throw new \RuntimeException("Invalid JSON response from API");
-        }
-
-        if (isset($data['error'])) {
-            $this->debugLog("API ERROR: " . $data['error']);
-
-            // Check if model is loading
-            if (stripos($data['error'], 'loading') !== false || stripos($data['error'], 'currently loading') !== false) {
-                $this->debugLog("Model is loading, waiting 30s and retrying...");
-                sleep(30);
-                return $this->callInferenceAPI($model, $imageData); // Retry once
-            }
-
-            throw new \RuntimeException("Hugging Face API error: " . $data['error']);
-        }
-
-        return $data;
-    }
-
-    /**
-     * Build metadata from BLIP caption and WD14 tags
+     * Build metadata from WD14 tags
      */
     private function buildMetadata(string $caption, array $wd14Tags, array $existingCategories): array
     {
@@ -654,32 +738,38 @@ class HuggingFaceAIService
         }
 
         try {
-            // Test with a simple whoami call
-            $context = stream_context_create([
-                'http' => [
-                    'method' => 'GET',
-                    'timeout' => 10,
-                    'ignore_errors' => true,
-                    'header' => 'Authorization: Bearer ' . $this->apiKey,
+            // Test with whoami call to verify API key
+            $ch = curl_init('https://huggingface.co/api/whoami-v2');
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 10,
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: Bearer ' . $this->apiKey,
                 ],
             ]);
 
-            $response = @file_get_contents('https://huggingface.co/api/whoami-v2', false, $context);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
 
-            if ($response === false) {
+            if ($response === false || $httpCode !== 200) {
                 return [
                     'success' => false,
-                    'error' => 'Failed to connect to Hugging Face API',
+                    'error' => 'Failed to connect to Hugging Face API (HTTP ' . $httpCode . ')',
                 ];
             }
 
             $data = json_decode($response, true);
 
             if (isset($data['name'])) {
+                // Also check if WD Tagger Space is reachable
+                $spaceCheck = $this->checkSpaceAvailability();
+
                 return [
                     'success' => true,
-                    'message' => 'Connected as: ' . $data['name'],
+                    'message' => 'Connected as: ' . $data['name'] . ($spaceCheck ? ' | WD Tagger Space: OK' : ' | WD Tagger Space: Unavailable'),
                     'username' => $data['name'],
+                    'space_available' => $spaceCheck,
                 ];
             }
 
@@ -693,6 +783,29 @@ class HuggingFaceAIService
                 'success' => false,
                 'error' => $e->getMessage(),
             ];
+        }
+    }
+
+    /**
+     * Check if WD Tagger Space is available
+     */
+    private function checkSpaceAvailability(): bool
+    {
+        try {
+            $ch = curl_init(self::WD_TAGGER_SPACE);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 10,
+                CURLOPT_NOBODY => true,  // HEAD request
+            ]);
+
+            curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            return $httpCode === 200;
+        } catch (\Throwable $e) {
+            return false;
         }
     }
 }
