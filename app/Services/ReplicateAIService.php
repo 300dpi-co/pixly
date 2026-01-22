@@ -112,30 +112,32 @@ Return ONLY the alt text, no quotes or other text.";
         $categoryNames = array_column($existingCategories, 'name');
 
         if (!empty($categoryNames)) {
-            $categoriesList = "IMPORTANT: You MUST choose categories from this exact list (use exact spelling): " . implode(', ', $categoryNames);
+            $categoriesList = "Choose 1-2 categories from this list (exact spelling): " . implode(', ', $categoryNames);
         } else {
-            $categoriesList = "Suggest 1-2 appropriate category names for this image";
+            $categoriesList = "Suggest 1-2 category names";
         }
 
-        return "Analyze this image and provide comprehensive metadata for an image gallery website.
+        return "You are writing for an adult image gallery website. Analyze this image and create enticing, natural metadata.
 
 {$categoriesList}
 
-Return your analysis in this exact JSON format (no other text before or after):
+For tags, be specific and descriptive. Include body features like: big boobs, small tits, huge ass, big ass, booty, hairy pussy, shaved pussy, thick thighs, curvy, petite, busty, natural boobs, fake tits, bubble butt, etc. Also include: hair color (blonde, brunette, redhead), ethnicity, pose type, setting, lingerie/clothing items.
+
+Return JSON only:
 {
-    \"title\": \"A compelling, SEO-friendly title (5-10 words)\",
-    \"description\": \"A detailed description for SEO (2-3 sentences, about 150-200 characters)\",
-    \"alt_text\": \"Accessible alt text describing the image (under 125 characters)\",
-    \"caption\": \"A short engaging caption for display (under 100 characters)\",
-    \"tags\": [\"tag1\", \"tag2\", \"tag3\", \"tag4\", \"tag5\", \"tag6\", \"tag7\", \"tag8\"],
+    \"title\": \"Catchy, sexy title (4-8 words, like a magazine headline)\",
+    \"description\": \"Enticing 2-sentence description that sounds natural and appealing, not robotic\",
+    \"alt_text\": \"Brief image description (under 100 chars)\",
+    \"caption\": \"Short flirty caption (under 80 chars)\",
+    \"tags\": [\"specific tag 1\", \"body feature\", \"hair color\", \"pose\", \"setting\", \"clothing\", \"more tags\", \"up to 12 tags\"],
     \"categories\": [\"Category Name\"],
-    \"colors\": [\"#hexcode1\", \"#hexcode2\", \"#hexcode3\"],
-    \"dominant_color\": \"#hexcode\",
-    \"mood\": \"The overall mood/feeling\",
-    \"style\": \"Photography style\"
+    \"colors\": [\"#hex1\", \"#hex2\", \"#hex3\"],
+    \"dominant_color\": \"#hex\",
+    \"mood\": \"sexy/playful/sensual/etc\",
+    \"style\": \"photo style\"
 }
 
-Return ONLY valid JSON, nothing else.";
+JSON only, no other text.";
     }
 
     /**
