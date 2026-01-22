@@ -13,7 +13,8 @@ namespace App\Services;
 class ReplicateAIService
 {
     private const API_ENDPOINT = 'https://api.replicate.com/v1/predictions';
-    private const MODEL_VERSION = 'yorickvp/llava-v1.6-mistral-7b:19be067b589d0c46689ffa7cc3ff321447a441986a7694c01225973c2eafc874';
+    // LLaVA 1.6 34B - more capable model
+    private const MODEL_VERSION = 'yorickvp/llava-v1.6-34b:41ecfbfb261e6c1adf3ad896c9066ca98346996d7c4045c5bc944a79d430f174';
     private const TIMEOUT = 120;
     private const POLL_INTERVAL = 2; // seconds
 
@@ -171,17 +172,28 @@ Return ONLY the JSON object, nothing else.";
         $data = json_decode($response, true);
 
         if (!$data) {
-            throw new \RuntimeException('Invalid response from Replicate API');
+            throw new \RuntimeException('Invalid response from Replicate API: ' . substr($response, 0, 200));
         }
 
+        // Check for various error formats
         if (isset($data['error'])) {
             throw new \RuntimeException('Replicate API error: ' . ($data['error'] ?? 'Unknown error'));
+        }
+
+        if (isset($data['detail'])) {
+            throw new \RuntimeException('Replicate API error: ' . $data['detail']);
+        }
+
+        if (isset($data['status']) && $data['status'] === 'failed') {
+            throw new \RuntimeException('Replicate prediction failed: ' . ($data['error'] ?? 'Unknown error'));
         }
 
         // Poll for completion
         $predictionUrl = $data['urls']['get'] ?? null;
         if (!$predictionUrl) {
-            throw new \RuntimeException('No prediction URL returned');
+            // Log full response for debugging
+            error_log('Replicate response missing urls.get: ' . json_encode($data));
+            throw new \RuntimeException('No prediction URL returned. Response: ' . json_encode(array_keys($data)));
         }
 
         return $this->pollForResult($predictionUrl);
