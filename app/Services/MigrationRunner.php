@@ -245,6 +245,12 @@ class MigrationRunner
             }
             $this->markComplete('ensure_api_logs_table');
         }
+
+        // Migration: Add Hugging Face API key setting
+        if (!$this->hasRun('add_huggingface_settings')) {
+            $this->addSetting('huggingface_api_key', '', 'encrypted', 'Hugging Face API key for Florence-2 and WD14 tagger');
+            $this->markComplete('add_huggingface_settings');
+        }
     }
 
     /**

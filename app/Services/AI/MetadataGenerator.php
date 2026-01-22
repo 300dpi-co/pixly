@@ -6,16 +6,17 @@ namespace App\Services\AI;
 
 use App\Services\ClaudeAIService;
 use App\Services\ReplicateAIService;
+use App\Services\HuggingFaceAIService;
 
 /**
  * Metadata Generator
  *
  * Uses AI to generate SEO-optimized metadata for images.
- * Supports Claude and Replicate (LLaVA) backends.
+ * Supports Claude, Replicate (LLaVA), and Hugging Face (Florence-2 + WD14) backends.
  */
 class MetadataGenerator
 {
-    private ClaudeAIService|ReplicateAIService $ai;
+    private ClaudeAIService|ReplicateAIService|HuggingFaceAIService $ai;
     private string $provider;
     private array $errors = [];
 
@@ -23,7 +24,9 @@ class MetadataGenerator
     {
         $this->provider = $provider ?? $this->getConfiguredProvider();
 
-        if ($this->provider === 'replicate') {
+        if ($this->provider === 'huggingface') {
+            $this->ai = new HuggingFaceAIService();
+        } elseif ($this->provider === 'replicate') {
             $this->ai = new ReplicateAIService();
         } else {
             $this->ai = new ClaudeAIService();
@@ -47,7 +50,12 @@ class MetadataGenerator
             // Fall through
         }
 
-        // Check which API key is configured
+        // Check which API key is configured (priority: HuggingFace > Replicate > Claude)
+        $huggingface = new HuggingFaceAIService();
+        if ($huggingface->isConfigured()) {
+            return 'huggingface';
+        }
+
         $replicate = new ReplicateAIService();
         if ($replicate->isConfigured()) {
             return 'replicate';

@@ -85,7 +85,11 @@ class AIController extends Controller
             'currentPage' => 'ai',
             'isConfigured' => $ai->isConfigured(),
             'provider' => $provider,
-            'providerName' => $provider === 'replicate' ? 'Replicate (LLaVA)' : 'Claude',
+            'providerName' => match($provider) {
+                'huggingface' => 'Hugging Face (Florence-2 + WD14)',
+                'replicate' => 'Replicate (LLaVA)',
+                default => 'Claude',
+            },
             'stats' => $stats,
             'queue' => $queue,
             'unprocessed' => $unprocessed,

@@ -94,7 +94,10 @@
                 Go to Settings
             </a>
             <p class="text-sm text-neutral-500 mt-4">
-                Get your Replicate API key from <a href="https://replicate.com/account/api-tokens" target="_blank" class="text-primary-600 hover:underline">replicate.com</a>
+                Get API keys from:
+                <a href="https://huggingface.co/settings/tokens" target="_blank" class="text-primary-600 hover:underline">Hugging Face</a> (recommended) |
+                <a href="https://replicate.com/account/api-tokens" target="_blank" class="text-primary-600 hover:underline">Replicate</a> |
+                <a href="https://console.anthropic.com" target="_blank" class="text-primary-600 hover:underline">Claude</a>
             </p>
         </div>
         <?php endif; ?>
