@@ -18,7 +18,7 @@ class MigrationRunner
 
     public function __construct()
     {
-        $this->db = db();
+        $this->db = \app()->getDatabase();
     }
 
     /**
