@@ -187,12 +187,20 @@ class MigrationRunner
 
         // Migration: Add AI provider settings
         if (!$this->hasRun('add_ai_settings')) {
-            $this->addSetting('ai_provider', 'replicate', 'string', 'AI provider for image analysis (claude or replicate)');
+            $this->addSetting('ai_provider', 'huggingface', 'string', 'AI provider (huggingface, replicate, or claude)');
+            $this->addSetting('huggingface_api_key', '', 'encrypted', 'Hugging Face API key for Florence-2 + WD14');
             $this->addSetting('replicate_api_key', '', 'encrypted', 'Replicate API key for LLaVA image analysis');
             $this->addSetting('claude_api_key', '', 'encrypted', 'Claude API key for image analysis');
-            $this->addSetting('deepseek_api_key', '', 'encrypted', 'DeepSeek API key');
-            $this->addSetting('deepinfra_api_key', '', 'encrypted', 'DeepInfra API key');
             $this->markComplete('add_ai_settings');
+        }
+
+        // Migration: Clean up old unused API keys and add HuggingFace
+        if (!$this->hasRun('cleanup_ai_settings_v2')) {
+            // Remove old unused keys
+            $this->db->execute("DELETE FROM settings WHERE setting_key IN ('deepseek_api_key', 'deepinfra_api_key')");
+            // Add HuggingFace if not exists
+            $this->addSetting('huggingface_api_key', '', 'encrypted', 'Hugging Face API key for Florence-2 + WD14');
+            $this->markComplete('cleanup_ai_settings_v2');
         }
 
         // Migration: Add contributor system settings

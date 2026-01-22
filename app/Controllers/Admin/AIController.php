@@ -234,19 +234,22 @@ class AIController extends Controller
      */
     private function ensureAISettingsExist($db): void
     {
+        // Remove old unused API keys
+        $db->execute("DELETE FROM settings WHERE setting_key IN ('deepseek_api_key', 'deepinfra_api_key')");
+
         $requiredSettings = [
             [
                 'setting_key' => 'ai_provider',
                 'setting_value' => 'huggingface',
                 'setting_type' => 'string',
-                'description' => 'AI provider for image analysis (huggingface, replicate, or claude)',
+                'description' => 'AI provider (huggingface, replicate, or claude)',
                 'is_public' => 0,
             ],
             [
                 'setting_key' => 'huggingface_api_key',
                 'setting_value' => '',
                 'setting_type' => 'encrypted',
-                'description' => 'Hugging Face API key for Florence-2 and WD14 tagger (recommended)',
+                'description' => 'Hugging Face API key for Florence-2 + WD14 (recommended for adult sites)',
                 'is_public' => 0,
             ],
             [
@@ -261,20 +264,6 @@ class AIController extends Controller
                 'setting_value' => '',
                 'setting_type' => 'encrypted',
                 'description' => 'Claude API key for image analysis',
-                'is_public' => 0,
-            ],
-            [
-                'setting_key' => 'deepseek_api_key',
-                'setting_value' => '',
-                'setting_type' => 'encrypted',
-                'description' => 'DeepSeek API key',
-                'is_public' => 0,
-            ],
-            [
-                'setting_key' => 'deepinfra_api_key',
-                'setting_value' => '',
-                'setting_type' => 'encrypted',
-                'description' => 'DeepInfra API key',
                 'is_public' => 0,
             ],
         ];
