@@ -13,8 +13,8 @@ namespace App\Services;
 class ReplicateAIService
 {
     private const API_ENDPOINT = 'https://api.replicate.com/v1/predictions';
-    // LLaVA 1.6 34B - more capable model
-    private const MODEL_VERSION = 'yorickvp/llava-v1.6-34b:41ecfbfb261e6c1adf3ad896c9066ca98346996d7c4045c5bc944a79d430f174';
+    // LLaVA 13B - stable vision-language model
+    private const MODEL_VERSION = 'yorickvp/llava-13b:80537f9eead1a5bfa72d5ac6ea6414379be41d4d4f6679fd776e9535d1eb58bb';
     private const TIMEOUT = 120;
     private const POLL_INTERVAL = 2; // seconds
 
