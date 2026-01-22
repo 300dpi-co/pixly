@@ -64,18 +64,27 @@ class HuggingFaceAIService
         // Get caption from image captioning model
         $this->debugLog("Calling caption model...");
         $caption = '';
+        $lastError = '';
 
         try {
             $caption = $this->getCaption($imageData);
         } catch (\Throwable $e) {
-            $this->debugLog("Primary caption model failed: " . $e->getMessage());
+            $lastError = $e->getMessage();
+            $this->debugLog("Primary caption model failed: " . $lastError);
             // Try fallback model
             try {
                 $this->debugLog("Trying fallback caption model...");
                 $caption = $this->getCaptionFallback($imageData);
             } catch (\Throwable $e2) {
-                $this->debugLog("Fallback caption model also failed: " . $e2->getMessage());
+                $lastError = $e2->getMessage();
+                $this->debugLog("Fallback caption model also failed: " . $lastError);
             }
+        }
+
+        // If no caption obtained, throw exception so MetadataGenerator can try Replicate
+        if (empty($caption)) {
+            $this->debugLog("No caption obtained - throwing exception for fallback");
+            throw new \RuntimeException("HuggingFace API not available: " . $lastError);
         }
 
         $this->debugLog("Caption result: " . substr($caption, 0, 200));

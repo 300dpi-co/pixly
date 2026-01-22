@@ -110,12 +110,36 @@ class MetadataGenerator
         // Get existing categories for context
         $categories = $db->fetchAll("SELECT id, name FROM categories WHERE is_active = 1 ORDER BY name");
 
-        // Analyze image with Claude AI
+        // Analyze image with AI - with automatic fallback
+        $analysis = null;
         try {
             $analysis = $this->ai->analyzeImage($imagePath, $categories);
         } catch (\Throwable $e) {
-            $this->errors[] = 'AI analysis failed: ' . $e->getMessage();
-            return false;
+            $errorMsg = $e->getMessage();
+
+            // If HuggingFace fails (410/403), try Replicate as fallback
+            if ($this->provider === 'huggingface' &&
+                (str_contains($errorMsg, '410') || str_contains($errorMsg, '403') ||
+                 str_contains($errorMsg, 'HTML') || str_contains($errorMsg, 'not available'))) {
+
+                $replicate = new ReplicateAIService();
+                if ($replicate->isConfigured()) {
+                    try {
+                        $analysis = $replicate->analyzeImage($imagePath, $categories);
+                        // Update provider for logging
+                        $this->provider = 'replicate (fallback)';
+                    } catch (\Throwable $e2) {
+                        $this->errors[] = 'HuggingFace failed, Replicate fallback also failed: ' . $e2->getMessage();
+                        return false;
+                    }
+                } else {
+                    $this->errors[] = 'HuggingFace unavailable (HTTP 410). Configure Replicate API key as fallback.';
+                    return false;
+                }
+            } else {
+                $this->errors[] = 'AI analysis failed: ' . $errorMsg;
+                return false;
+            }
         }
 
         if (empty($analysis)) {
