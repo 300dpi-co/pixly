@@ -165,6 +165,7 @@ $router->group(['prefix' => 'api'], function (Router $router) {
 
 $router->group(['prefix' => 'admin', 'middleware' => ['auth', 'admin']], function (Router $router) {
     $router->get('/', 'App\Controllers\Admin\DashboardController@index');
+    $router->get('/diagnostics', 'App\Controllers\Admin\DashboardController@diagnostics');
 
     // Images
     $router->get('/images', 'App\Controllers\Admin\ImageController@index');

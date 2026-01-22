@@ -7,6 +7,7 @@ namespace App\Controllers\Admin;
 use App\Core\Controller;
 use App\Core\Response;
 use App\Services\UpdateChecker;
+use App\Services\MigrationRunner;
 
 /**
  * Admin Dashboard Controller
@@ -18,6 +19,9 @@ class DashboardController extends Controller
      */
     public function index(): Response
     {
+        // Run migrations on every dashboard load (backup in case middleware fails)
+        $this->runMigrations();
+
         $db = $this->db();
 
         // Get update info (silent, never fails)
@@ -80,5 +84,68 @@ class DashboardController extends Controller
         } catch (\Throwable $e) {
             return ['available' => false];
         }
+    }
+
+    /**
+     * Run database migrations silently
+     */
+    private function runMigrations(): void
+    {
+        try {
+            $runner = new MigrationRunner();
+            $runner->runPending();
+        } catch (\Throwable $e) {
+            // Silent fail - log for debugging
+            error_log('Dashboard migration error: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Diagnostic endpoint to check migration status
+     */
+    public function diagnostics(): Response
+    {
+        $db = $this->db();
+        $results = [];
+
+        // Check migrations table
+        try {
+            $migrations = $db->fetchAll("SELECT * FROM migrations ORDER BY id");
+            $results['migrations_table'] = $migrations ?: 'empty';
+        } catch (\Throwable $e) {
+            $results['migrations_table'] = 'ERROR: ' . $e->getMessage();
+        }
+
+        // Check is_trusted column
+        try {
+            $col = $db->fetch(
+                "SELECT 1 FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'is_trusted'"
+            );
+            $results['users.is_trusted'] = $col ? 'EXISTS' : 'MISSING';
+        } catch (\Throwable $e) {
+            $results['users.is_trusted'] = 'ERROR: ' . $e->getMessage();
+        }
+
+        // Check AI settings
+        try {
+            $settings = $db->fetchAll(
+                "SELECT setting_key FROM settings WHERE setting_key IN ('ai_provider', 'replicate_api_key', 'claude_api_key')"
+            );
+            $results['ai_settings'] = $settings ?: 'MISSING';
+        } catch (\Throwable $e) {
+            $results['ai_settings'] = 'ERROR: ' . $e->getMessage();
+        }
+
+        // Run migrations now and show log
+        try {
+            $runner = new MigrationRunner();
+            $runner->runPending();
+            $results['migration_log'] = $runner->getLog() ?: 'No actions taken';
+        } catch (\Throwable $e) {
+            $results['migration_log'] = 'ERROR: ' . $e->getMessage();
+        }
+
+        return $this->json($results);
     }
 }
