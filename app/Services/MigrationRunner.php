@@ -7,55 +7,35 @@ namespace App\Services;
 /**
  * Automatic Migration Runner
  *
- * Silently runs pending database migrations on app startup.
+ * Runs database schema updates automatically on admin page load.
+ * Uses PHP-based migrations for reliable execution.
  * Users never need to manually run SQL - updates just work.
  */
 class MigrationRunner
 {
     private $db;
-    private string $migrationsPath;
     private array $log = [];
 
     public function __construct()
     {
         $this->db = db();
-        $this->migrationsPath = ROOT_PATH . '/database/migrations';
     }
 
     /**
-     * Run all pending migrations silently
-     * Called on admin page load
+     * Run all pending migrations
      */
     public function runPending(): void
     {
         try {
-            // Ensure migrations table exists
             $this->ensureMigrationsTable();
-
-            // Get list of already-run migrations
-            $completed = $this->getCompletedMigrations();
-
-            // Get all migration files
-            $files = $this->getMigrationFiles();
-
-            // Run pending migrations
-            foreach ($files as $file) {
-                $migrationName = basename($file, '.sql');
-
-                if (!in_array($migrationName, $completed)) {
-                    $this->runMigration($file, $migrationName);
-                }
-            }
+            $this->runAllMigrations();
         } catch (\Throwable $e) {
-            // Log error but don't break the app
-            if (function_exists('config') && config('app.debug', false)) {
-                error_log('MigrationRunner: ' . $e->getMessage());
-            }
+            $this->logError('MigrationRunner failed: ' . $e->getMessage());
         }
     }
 
     /**
-     * Ensure the migrations tracking table exists
+     * Ensure migrations tracking table exists
      */
     private function ensureMigrationsTable(): void
     {
@@ -63,124 +43,221 @@ class MigrationRunner
             CREATE TABLE IF NOT EXISTS migrations (
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 migration VARCHAR(255) NOT NULL UNIQUE,
-                batch INT UNSIGNED NOT NULL DEFAULT 1,
                 executed_at DATETIME DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ");
     }
 
     /**
-     * Get list of completed migration names
+     * Check if migration has been run
      */
-    private function getCompletedMigrations(): array
+    private function hasRun(string $name): bool
     {
         try {
-            $results = $this->db->fetchAll("SELECT migration FROM migrations");
-            return array_column($results, 'migration');
+            $result = $this->db->fetch(
+                "SELECT 1 FROM migrations WHERE migration = :name",
+                ['name' => $name]
+            );
+            return !empty($result);
         } catch (\Throwable $e) {
-            return [];
+            return false;
         }
     }
 
     /**
-     * Get all migration SQL files sorted by name
+     * Mark migration as complete
      */
-    private function getMigrationFiles(): array
+    private function markComplete(string $name): void
     {
-        if (!is_dir($this->migrationsPath)) {
-            return [];
+        try {
+            $this->db->execute(
+                "INSERT IGNORE INTO migrations (migration) VALUES (:name)",
+                ['name' => $name]
+            );
+        } catch (\Throwable $e) {
+            // Ignore
         }
-
-        $files = glob($this->migrationsPath . '/*.sql');
-        sort($files); // Alphabetical order
-        return $files;
     }
 
     /**
-     * Run a single migration file
+     * Check if column exists in table
      */
-    private function runMigration(string $file, string $migrationName): void
+    private function columnExists(string $table, string $column): bool
     {
-        $sql = file_get_contents($file);
-
-        if (empty(trim($sql))) {
-            return;
+        try {
+            $result = $this->db->fetch(
+                "SELECT 1 FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE()
+                 AND TABLE_NAME = :table
+                 AND COLUMN_NAME = :column",
+                ['table' => $table, 'column' => $column]
+            );
+            return !empty($result);
+        } catch (\Throwable $e) {
+            return false;
         }
+    }
 
-        // Split by semicolons to handle multiple statements
-        // But be careful with semicolons inside strings
-        $statements = $this->splitSqlStatements($sql);
+    /**
+     * Check if table exists
+     */
+    private function tableExists(string $table): bool
+    {
+        try {
+            $result = $this->db->fetch(
+                "SELECT 1 FROM information_schema.TABLES
+                 WHERE TABLE_SCHEMA = DATABASE()
+                 AND TABLE_NAME = :table",
+                ['table' => $table]
+            );
+            return !empty($result);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
 
-        foreach ($statements as $statement) {
-            $statement = trim($statement);
+    /**
+     * Check if setting exists
+     */
+    private function settingExists(string $key): bool
+    {
+        try {
+            $result = $this->db->fetch(
+                "SELECT 1 FROM settings WHERE setting_key = :key",
+                ['key' => $key]
+            );
+            return !empty($result);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
 
-            // Skip empty statements and comments
-            if (empty($statement) || strpos($statement, '--') === 0) {
-                continue;
-            }
-
+    /**
+     * Add column if it doesn't exist
+     */
+    private function addColumn(string $table, string $column, string $definition): void
+    {
+        if (!$this->columnExists($table, $column)) {
             try {
-                $this->db->execute($statement);
+                $this->db->execute("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}");
+                $this->log[] = "Added column {$table}.{$column}";
             } catch (\Throwable $e) {
-                // Log but continue - some statements may fail if already applied
-                // e.g., "column already exists" errors are OK
-                $errorMsg = $e->getMessage();
-
-                // These errors are OK - column/index already exists
-                $ignorableErrors = [
-                    'Duplicate column name',
-                    'Duplicate key name',
-                    'already exists',
-                    'SQLSTATE[42S21]', // Column already exists
-                    'SQLSTATE[42000]', // Duplicate key name
-                ];
-
-                $isIgnorable = false;
-                foreach ($ignorableErrors as $ignorable) {
-                    if (stripos($errorMsg, $ignorable) !== false) {
-                        $isIgnorable = true;
-                        break;
-                    }
-                }
-
-                if (!$isIgnorable) {
-                    $this->log[] = "Migration {$migrationName} error: {$errorMsg}";
-                    if (function_exists('config') && config('app.debug', false)) {
-                        error_log("Migration {$migrationName} error: {$errorMsg}");
-                    }
-                }
+                $this->logError("Failed to add column {$table}.{$column}: " . $e->getMessage());
             }
         }
+    }
 
-        // Record migration as completed
-        try {
-            $batch = (int) $this->db->fetchColumn("SELECT COALESCE(MAX(batch), 0) + 1 FROM migrations");
-            $this->db->insert('migrations', [
-                'migration' => $migrationName,
-                'batch' => $batch,
-            ]);
-            $this->log[] = "Migration completed: {$migrationName}";
-        } catch (\Throwable $e) {
-            // Already recorded, that's fine
+    /**
+     * Add setting if it doesn't exist
+     */
+    private function addSetting(string $key, string $value, string $type, string $description): void
+    {
+        if (!$this->settingExists($key)) {
+            try {
+                $this->db->insert('settings', [
+                    'setting_key' => $key,
+                    'setting_value' => $value,
+                    'setting_type' => $type,
+                    'description' => $description,
+                    'is_public' => 0,
+                ]);
+                $this->log[] = "Added setting: {$key}";
+            } catch (\Throwable $e) {
+                $this->logError("Failed to add setting {$key}: " . $e->getMessage());
+            }
         }
     }
 
     /**
-     * Split SQL into individual statements
+     * Run all migrations
      */
-    private function splitSqlStatements(string $sql): array
+    private function runAllMigrations(): void
     {
-        // Remove SQL comments
-        $sql = preg_replace('/--.*$/m', '', $sql);
+        // Migration: Add is_trusted column to users
+        if (!$this->hasRun('add_is_trusted_column')) {
+            $this->addColumn('users', 'is_trusted', 'TINYINT(1) DEFAULT 0');
+            $this->markComplete('add_is_trusted_column');
+        }
 
-        // Split by semicolons
-        $statements = preg_split('/;\s*$/m', $sql);
+        // Migration: Add uploaded_by column to images
+        if (!$this->hasRun('add_uploaded_by_column')) {
+            $this->addColumn('images', 'uploaded_by', 'INT UNSIGNED NULL');
+            $this->markComplete('add_uploaded_by_column');
+        }
 
-        return array_filter(array_map('trim', $statements));
+        // Migration: Add AI provider settings
+        if (!$this->hasRun('add_ai_settings')) {
+            $this->addSetting('ai_provider', 'replicate', 'string', 'AI provider for image analysis (claude or replicate)');
+            $this->addSetting('replicate_api_key', '', 'encrypted', 'Replicate API key for LLaVA image analysis');
+            $this->addSetting('claude_api_key', '', 'encrypted', 'Claude API key for image analysis');
+            $this->addSetting('deepseek_api_key', '', 'encrypted', 'DeepSeek API key');
+            $this->addSetting('deepinfra_api_key', '', 'encrypted', 'DeepInfra API key');
+            $this->markComplete('add_ai_settings');
+        }
+
+        // Migration: Add contributor system settings
+        if (!$this->hasRun('add_contributor_settings')) {
+            $this->addSetting('contributor_system_enabled', '0', 'bool', 'Enable contributor role system');
+            $this->addColumn('users', 'contributor_status', "ENUM('none','pending','approved','rejected') DEFAULT 'none'");
+            $this->addColumn('users', 'contributor_requested_at', 'DATETIME NULL');
+            $this->addColumn('users', 'contributor_approved_at', 'DATETIME NULL');
+            $this->markComplete('add_contributor_settings');
+        }
+
+        // Migration: Ensure AI processing queue table exists
+        if (!$this->hasRun('ensure_ai_queue_table')) {
+            if (!$this->tableExists('ai_processing_queue')) {
+                $this->db->execute("
+                    CREATE TABLE ai_processing_queue (
+                        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                        image_id INT UNSIGNED NOT NULL,
+                        task_type VARCHAR(50) DEFAULT 'all',
+                        priority INT DEFAULT 5,
+                        status ENUM('pending','processing','completed','failed') DEFAULT 'pending',
+                        attempts INT DEFAULT 0,
+                        error_message TEXT NULL,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        INDEX idx_status (status),
+                        INDEX idx_image (image_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+            }
+            $this->markComplete('ensure_ai_queue_table');
+        }
+
+        // Migration: Ensure API logs table exists
+        if (!$this->hasRun('ensure_api_logs_table')) {
+            if (!$this->tableExists('api_logs')) {
+                $this->db->execute("
+                    CREATE TABLE api_logs (
+                        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                        api_name VARCHAR(50) NOT NULL,
+                        endpoint VARCHAR(255) NULL,
+                        tokens_used INT NULL,
+                        cost DECIMAL(10,6) NULL,
+                        error_message TEXT NULL,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_api_name (api_name),
+                        INDEX idx_created (created_at)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+            }
+            $this->markComplete('ensure_api_logs_table');
+        }
     }
 
     /**
-     * Get migration log
+     * Log error
+     */
+    private function logError(string $message): void
+    {
+        $this->log[] = "ERROR: {$message}";
+        error_log("MigrationRunner: {$message}");
+    }
+
+    /**
+     * Get log
      */
     public function getLog(): array
     {
