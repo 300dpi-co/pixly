@@ -93,17 +93,18 @@ class HuggingFaceAIService
      */
     private function getWD14TagsViaSpace(string $imagePath): array
     {
-        // Step 1: Upload image to the Space
-        $this->debugLog("Uploading image to WD Tagger Space...");
-        $uploadedPath = $this->uploadImageToSpace($imagePath);
-
-        if (!$uploadedPath) {
-            throw new \RuntimeException('Failed to upload image to WD Tagger Space');
+        // Read image and encode as base64 data URI
+        $imageData = file_get_contents($imagePath);
+        if ($imageData === false) {
+            throw new \RuntimeException('Failed to read image file');
         }
 
-        $this->debugLog("Image uploaded, path: " . $uploadedPath);
+        $mimeType = mime_content_type($imagePath) ?: 'image/jpeg';
+        $base64Image = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
 
-        // Step 2: Call the predict endpoint
+        $this->debugLog("Image encoded as base64 data URI (length: " . strlen($base64Image) . ")");
+
+        // Call the predict endpoint with base64 image
         $this->debugLog("Calling predict endpoint...");
         $predictUrl = self::WD_TAGGER_SPACE . '/call/predict';
 
@@ -111,7 +112,7 @@ class HuggingFaceAIService
         // Parameters: image, model_repo, general_thresh, general_mcut, character_thresh, character_mcut
         $requestData = [
             'data' => [
-                ['path' => $uploadedPath],  // Image reference
+                $base64Image,                // Base64 encoded image
                 self::WD14_MODEL,            // Model to use
                 0.35,                        // General threshold
                 false,                       // General MCut disabled
@@ -120,7 +121,7 @@ class HuggingFaceAIService
             ]
         ];
 
-        $this->debugLog("Request data: " . json_encode($requestData));
+        $this->debugLog("Calling Space with model: " . self::WD14_MODEL);
 
         $ch = curl_init($predictUrl);
         curl_setopt_array($ch, [
@@ -177,74 +178,6 @@ class HuggingFaceAIService
 
         // Parse SSE response format
         return $this->parseSpaceResponse($resultResponse);
-    }
-
-    /**
-     * Upload image to the WD Tagger Space
-     */
-    private function uploadImageToSpace(string $imagePath): ?string
-    {
-        $uploadUrl = self::WD_TAGGER_SPACE . '/upload';
-
-        // Read the image file
-        $imageData = file_get_contents($imagePath);
-        if ($imageData === false) {
-            $this->debugLog("Failed to read image file");
-            return null;
-        }
-
-        // Get mime type
-        $mimeType = mime_content_type($imagePath) ?: 'image/jpeg';
-        $filename = basename($imagePath);
-
-        // Create multipart form data
-        $boundary = '----WebKitFormBoundary' . bin2hex(random_bytes(16));
-
-        $body = "--{$boundary}\r\n";
-        $body .= "Content-Disposition: form-data; name=\"files\"; filename=\"{$filename}\"\r\n";
-        $body .= "Content-Type: {$mimeType}\r\n\r\n";
-        $body .= $imageData . "\r\n";
-        $body .= "--{$boundary}--\r\n";
-
-        $ch = curl_init($uploadUrl);
-        curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $body,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 60,
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: multipart/form-data; boundary=' . $boundary,
-                'Authorization: Bearer ' . $this->apiKey,
-            ],
-        ]);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
-
-        $this->debugLog("Upload HTTP Code: {$httpCode}");
-        $this->debugLog("Upload Response: " . $response);
-
-        if ($response === false || $httpCode !== 200) {
-            $this->debugLog("Upload failed: " . ($curlError ?: "HTTP {$httpCode}"));
-            return null;
-        }
-
-        $data = json_decode($response, true);
-
-        // Response format: [{"path": "...", "url": "...", ...}]
-        if (is_array($data) && !empty($data[0]['path'])) {
-            return $data[0]['path'];
-        }
-
-        // Alternative response format
-        if (is_array($data) && !empty($data['path'])) {
-            return $data['path'];
-        }
-
-        $this->debugLog("Unexpected upload response format");
-        return null;
     }
 
     /**
