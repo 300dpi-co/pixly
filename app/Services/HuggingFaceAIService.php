@@ -104,9 +104,9 @@ class HuggingFaceAIService
 
         $this->debugLog("Image encoded as base64 data URI (length: " . strlen($base64Image) . ")");
 
-        // Call the predict endpoint with base64 image
-        $this->debugLog("Calling predict endpoint...");
-        $predictUrl = self::WD_TAGGER_SPACE . '/call/predict';
+        // Try the older /api/predict endpoint first (synchronous)
+        $this->debugLog("Calling /api/predict endpoint...");
+        $predictUrl = self::WD_TAGGER_SPACE . '/api/predict';
 
         // Prepare the request data
         // Parameters: image, model_repo, general_thresh, general_mcut, character_thresh, character_mcut
@@ -141,103 +141,107 @@ class HuggingFaceAIService
         curl_close($ch);
 
         $this->debugLog("Predict HTTP Code: {$httpCode}");
-        $this->debugLog("Predict Response: " . substr($response, 0, 500));
+        $this->debugLog("Predict Response: " . substr($response, 0, 1000));
 
         if ($response === false) {
             throw new \RuntimeException("Failed to connect to WD Tagger Space: {$curlError}");
         }
 
-        $data = json_decode($response, true);
-
-        if (!isset($data['event_id'])) {
-            $this->debugLog("No event_id in response: " . $response);
-            throw new \RuntimeException('WD Tagger Space returned unexpected response');
+        // If /api/predict fails, try /run/predict
+        if ($httpCode === 405 || $httpCode === 404) {
+            $this->debugLog("Trying /run/predict endpoint...");
+            return $this->tryRunPredict($requestData);
         }
 
-        // Step 3: Fetch results using event_id
-        $eventId = $data['event_id'];
-        $this->debugLog("Got event_id: {$eventId}, fetching results...");
+        $data = json_decode($response, true);
 
-        $resultUrl = self::WD_TAGGER_SPACE . '/call/predict/' . $eventId;
+        if ($data === null) {
+            $this->debugLog("JSON decode failed: " . json_last_error_msg());
+            throw new \RuntimeException('WD Tagger Space returned invalid JSON');
+        }
 
-        $ch = curl_init($resultUrl);
+        // Check for error response
+        if (isset($data['error'])) {
+            $this->debugLog("Space error: " . ($data['error'] ?? json_encode($data)));
+            throw new \RuntimeException('WD Tagger Space error: ' . ($data['error'] ?? 'Unknown error'));
+        }
+
+        // Parse the synchronous response
+        return $this->parseSyncResponse($data);
+    }
+
+    /**
+     * Try the /run/predict endpoint (alternative Gradio API)
+     */
+    private function tryRunPredict(array $requestData): array
+    {
+        $predictUrl = self::WD_TAGGER_SPACE . '/run/predict';
+
+        $ch = curl_init($predictUrl);
         curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($requestData),
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => self::TIMEOUT,
             CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
                 'Authorization: Bearer ' . $this->apiKey,
             ],
         ]);
 
-        $resultResponse = curl_exec($ch);
-        $resultHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        $this->debugLog("Result HTTP Code: {$resultHttpCode}");
-        $this->debugLog("Result Response: " . substr($resultResponse, 0, 1000));
+        $this->debugLog("Run/predict HTTP Code: {$httpCode}");
+        $this->debugLog("Run/predict Response: " . substr($response, 0, 1000));
 
-        // Parse SSE response format
-        return $this->parseSpaceResponse($resultResponse);
+        if ($httpCode !== 200) {
+            throw new \RuntimeException("WD Tagger Space not available (HTTP {$httpCode})");
+        }
+
+        $data = json_decode($response, true);
+
+        if ($data === null) {
+            throw new \RuntimeException('WD Tagger Space returned invalid JSON');
+        }
+
+        return $this->parseSyncResponse($data);
     }
 
     /**
-     * Parse Gradio Space SSE response
+     * Parse synchronous Gradio response
      */
-    private function parseSpaceResponse(string $response): array
+    private function parseSyncResponse(array $data): array
     {
         $tags = [];
         $rating = [];
 
-        // Parse SSE format - look for "event: complete" and "data: ..."
-        $lines = explode("\n", $response);
-        $isComplete = false;
+        // Response format: {"data": [sorted_tags_string, rating_dict, character_dict, general_dict]}
+        if (isset($data['data']) && is_array($data['data']) && count($data['data']) >= 4) {
+            $ratingDict = $data['data'][1] ?? [];
+            $generalDict = $data['data'][3] ?? [];
 
-        foreach ($lines as $line) {
-            $line = trim($line);
+            $rating = $ratingDict;
 
-            if ($line === 'event: complete') {
-                $isComplete = true;
-                continue;
-            }
-
-            if ($isComplete && str_starts_with($line, 'data: ')) {
-                $jsonStr = substr($line, 6);
-                $data = json_decode($jsonStr, true);
-
-                if (is_array($data) && count($data) >= 4) {
-                    // Format: [sorted_tags_string, rating_dict, character_dict, general_dict]
-                    $sortedTagsStr = $data[0] ?? '';
-                    $ratingDict = $data[1] ?? [];
-                    $generalDict = $data[3] ?? [];
-
-                    // Parse rating
-                    $rating = $ratingDict;
-
-                    // Parse general tags (dict with tag => score)
-                    if (is_array($generalDict)) {
-                        foreach ($generalDict as $tagName => $score) {
-                            if ($score > 0.35) {
-                                $tags[] = [
-                                    'name' => $this->cleanTag($tagName),
-                                    'score' => $score,
-                                ];
-                            }
-                        }
+            // Parse general tags (dict with tag => score)
+            if (is_array($generalDict)) {
+                foreach ($generalDict as $tagName => $score) {
+                    if ($score > 0.35) {
+                        $tags[] = [
+                            'name' => $this->cleanTag($tagName),
+                            'score' => $score,
+                        ];
                     }
-
-                    // Sort by score descending
-                    usort($tags, fn($a, $b) => $b['score'] <=> $a['score']);
-
-                    $this->debugLog("Parsed " . count($tags) . " tags from Space response");
-                    break;
                 }
             }
 
-            // Check for error event
-            if (str_starts_with($line, 'event: error')) {
-                $this->debugLog("Space returned error event");
-                throw new \RuntimeException('WD Tagger Space returned an error');
-            }
+            // Sort by score descending
+            usort($tags, fn($a, $b) => $b['score'] <=> $a['score']);
+
+            $this->debugLog("Parsed " . count($tags) . " tags from sync response");
+        } else {
+            $this->debugLog("Unexpected response format: " . json_encode($data));
         }
 
         return [
