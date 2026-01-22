@@ -164,8 +164,8 @@ class SettingsController extends Controller
                     }
                     break;
                 case 'encrypted':
-                    // Only update if value changed (not masked)
-                    if ($value === '********' || empty($value)) {
+                    // Only update if value changed (not masked with stars)
+                    if (empty($value) || str_contains($value, '*')) {
                         continue 2;
                     }
                     // In production, encrypt the value

@@ -834,15 +834,14 @@
                                 </label>
                             </div>
                             <div class="mt-3">
-                                <input type="text" name="huggingface_api_key" value=""
-                                       placeholder="<?= !empty($apiSettings['huggingface_api_key']) ? '••••••••' : 'hf_...' ?>"
+                                <?php
+                                $hfKey = $apiSettings['huggingface_api_key'] ?? '';
+                                $hfMasked = $hfKey ? substr($hfKey, 0, 4) . str_repeat('*', max(0, strlen($hfKey) - 8)) . substr($hfKey, -4) : '';
+                                ?>
+                                <input type="text" name="huggingface_api_key" value="<?= e($hfMasked) ?>"
+                                       placeholder="hf_..."
                                        class="w-full px-3 py-2 border rounded-lg font-mono text-sm">
-                                <div class="flex items-center justify-between mt-1">
-                                    <p class="text-xs text-neutral-500">Get from <a href="https://huggingface.co/settings/tokens" target="_blank" class="text-primary-600 hover:underline">huggingface.co/settings/tokens</a></p>
-                                    <?php if (!empty($apiSettings['huggingface_api_key'])): ?>
-                                        <span class="text-xs text-green-600 font-medium">Key configured</span>
-                                    <?php endif; ?>
-                                </div>
+                                <p class="text-xs text-neutral-500 mt-1">Get from <a href="https://huggingface.co/settings/tokens" target="_blank" class="text-primary-600 hover:underline">huggingface.co/settings/tokens</a></p>
                             </div>
                         </div>
 
@@ -863,15 +862,14 @@
                                 </label>
                             </div>
                             <div class="mt-3">
-                                <input type="text" name="replicate_api_key" value=""
-                                       placeholder="<?= !empty($apiSettings['replicate_api_key']) ? '••••••••' : 'r8_...' ?>"
+                                <?php
+                                $repKey = $apiSettings['replicate_api_key'] ?? '';
+                                $repMasked = $repKey ? substr($repKey, 0, 4) . str_repeat('*', max(0, strlen($repKey) - 8)) . substr($repKey, -4) : '';
+                                ?>
+                                <input type="text" name="replicate_api_key" value="<?= e($repMasked) ?>"
+                                       placeholder="r8_..."
                                        class="w-full px-3 py-2 border rounded-lg font-mono text-sm">
-                                <div class="flex items-center justify-between mt-1">
-                                    <p class="text-xs text-neutral-500">Get from <a href="https://replicate.com/account/api-tokens" target="_blank" class="text-primary-600 hover:underline">replicate.com/account/api-tokens</a></p>
-                                    <?php if (!empty($apiSettings['replicate_api_key'])): ?>
-                                        <span class="text-xs text-green-600 font-medium">Key configured</span>
-                                    <?php endif; ?>
-                                </div>
+                                <p class="text-xs text-neutral-500 mt-1">Get from <a href="https://replicate.com/account/api-tokens" target="_blank" class="text-primary-600 hover:underline">replicate.com/account/api-tokens</a></p>
                             </div>
                         </div>
 
@@ -892,15 +890,14 @@
                                 </label>
                             </div>
                             <div class="mt-3">
-                                <input type="text" name="claude_api_key" value=""
-                                       placeholder="<?= !empty($apiSettings['claude_api_key']) ? '••••••••' : 'sk-ant-...' ?>"
+                                <?php
+                                $claudeKey = $apiSettings['claude_api_key'] ?? '';
+                                $claudeMasked = $claudeKey ? substr($claudeKey, 0, 7) . str_repeat('*', max(0, strlen($claudeKey) - 11)) . substr($claudeKey, -4) : '';
+                                ?>
+                                <input type="text" name="claude_api_key" value="<?= e($claudeMasked) ?>"
+                                       placeholder="sk-ant-..."
                                        class="w-full px-3 py-2 border rounded-lg font-mono text-sm">
-                                <div class="flex items-center justify-between mt-1">
-                                    <p class="text-xs text-neutral-500">Get from <a href="https://console.anthropic.com/api-keys" target="_blank" class="text-primary-600 hover:underline">console.anthropic.com</a></p>
-                                    <?php if (!empty($apiSettings['claude_api_key'])): ?>
-                                        <span class="text-xs text-green-600 font-medium">Key configured</span>
-                                    <?php endif; ?>
-                                </div>
+                                <p class="text-xs text-neutral-500 mt-1">Get from <a href="https://console.anthropic.com/api-keys" target="_blank" class="text-primary-600 hover:underline">console.anthropic.com</a></p>
                             </div>
                         </div>
 
