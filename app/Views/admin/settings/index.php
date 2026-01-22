@@ -825,11 +825,31 @@
                                        class="w-full max-w-xs px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
 
                             <?php elseif ($setting['setting_type'] === 'encrypted'): ?>
-                                <input type="password" name="<?= e($setting['setting_key']) ?>"
-                                       value="<?= $setting['setting_value'] ? '********' : '' ?>"
-                                       placeholder="<?= $setting['setting_value'] ? 'Enter new value to change' : 'Enter value' ?>"
-                                       class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-                                <p class="text-neutral-500 text-sm mt-1">Sensitive data - hidden for security</p>
+                                <div class="flex items-center gap-3">
+                                    <input type="text" name="<?= e($setting['setting_key']) ?>"
+                                           value=""
+                                           placeholder="<?= $setting['setting_value'] ? 'Enter new key to replace existing' : 'Enter API key' ?>"
+                                           class="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-mono">
+                                    <?php if ($setting['setting_value']): ?>
+                                        <span class="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                            </svg>
+                                            Configured
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="inline-flex items-center px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm">
+                                            Not set
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+                                <p class="text-neutral-500 text-sm mt-1">
+                                    <?php if ($setting['setting_value']): ?>
+                                        Key is saved. Leave empty to keep current key, or enter a new key to replace it.
+                                    <?php else: ?>
+                                        Enter your API key. It will be stored securely.
+                                    <?php endif; ?>
+                                </p>
 
                             <?php elseif ($setting['setting_type'] === 'json'): ?>
                                 <textarea name="<?= e($setting['setting_key']) ?>" rows="4"
