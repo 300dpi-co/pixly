@@ -13,12 +13,15 @@ namespace App\Services;
 class OpenRouterService
 {
     private const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-    // Using Llama 3.2 Vision - English-native model, no Chinese output issues
-    private const MODEL = 'meta-llama/llama-3.2-11b-vision-instruct';
-    private const TIMEOUT = 45;
+    // Qwen 2.5 VL - supports JSON mode, reliable output
+    // Has occasional Chinese output but we handle with retry logic
+    private const MODEL = 'qwen/qwen-2.5-vl-72b-instruct';
+    private const TIMEOUT = 60;
+    private const MAX_RETRIES = 2;
 
     private string $apiKey;
     private array $errors = [];
+    private int $retryCount = 0;
 
     public function __construct()
     {
@@ -56,13 +59,20 @@ class OpenRouterService
         // Build detailed category guide
         $categoryGuide = $this->buildCategoryGuide($categoryNames);
 
+        // Check if this is a retry (stronger English enforcement)
+        $isRetry = $this->retryCount > 0;
+        $englishEnforcement = $isRetry
+            ? "MANDATORY: Output ONLY in English alphabet (A-Z). NO Chinese, Japanese, Korean, or other non-Latin characters allowed. This is attempt " . ($this->retryCount + 1) . ".\n\n"
+            : "";
+
         // The prompt - engineered for dual-market SEO (India + USA)
-        $prompt = "You are an SEO metadata generator for an adult image gallery targeting INDIA and USA markets.
+        $prompt = "{$englishEnforcement}You are an SEO metadata generator for an adult image gallery targeting INDIA and USA markets.
 
 CRITICAL RULES:
-1. Output in ENGLISH + Hindi Romaji terms for SEO
-2. Output ACTUAL descriptive content, never placeholders or boolean values
-3. Be specific and descriptive about what you see in the image
+1. ALL OUTPUT MUST BE IN ENGLISH ALPHABET ONLY (A-Z, a-z)
+2. Use Hindi Romaji terms (written in English letters like 'bhabhi', 'desi') NOT Devanagari or Chinese
+3. Output ACTUAL descriptive content, never placeholders or boolean values
+4. Be specific and descriptive about what you see in the image
 
 TARGET MARKETS - DUAL SEO STRATEGY:
 For INDIAN subjects, include Hindi Romaji search terms that Indian users search for:
@@ -204,10 +214,22 @@ Now analyze this image. If subject appears INDIAN, use Hindi Romaji terms + West
         $this->debugLog("Tags count: " . count($result['tags'] ?? []));
 
         // Validate response - reject garbage/placeholder values
-        if (!$this->validateResponse($result)) {
-            $this->debugLog("Response validation failed - got placeholder values");
-            throw new \RuntimeException('OpenRouter returned placeholder values instead of actual content');
+        $validation = $this->validateResponse($result);
+
+        if ($validation === 'retry' && $this->retryCount < self::MAX_RETRIES) {
+            $this->retryCount++;
+            $this->debugLog("Chinese characters detected - retrying with stronger English enforcement (attempt {$this->retryCount})");
+            sleep(1); // Brief pause before retry
+            return $this->analyzeImage($imagePath, $existingCategories);
         }
+
+        if ($validation !== true) {
+            $this->debugLog("Response validation failed - got placeholder or non-English values");
+            throw new \RuntimeException('OpenRouter returned invalid content after ' . ($this->retryCount + 1) . ' attempts');
+        }
+
+        // Reset retry count on success
+        $this->retryCount = 0;
 
         // Build metadata in the format expected by MetadataGenerator
         return $this->buildMetadata($result, $existingCategories);
@@ -282,8 +304,9 @@ Now analyze this image. If subject appears INDIAN, use Hindi Romaji terms + West
 
     /**
      * Validate that response contains actual content, not placeholders
+     * Returns: true (valid), false (invalid - no retry), 'retry' (contains Chinese - should retry)
      */
-    private function validateResponse(array $result): bool
+    private function validateResponse(array $result): bool|string
     {
         // Check title - must be a string with actual content
         $title = $result['title'] ?? null;
@@ -296,10 +319,10 @@ Now analyze this image. If subject appears INDIAN, use Hindi Romaji terms + West
             $this->debugLog("Title is a placeholder value: {$title}");
             return false;
         }
-        // Reject Chinese/non-Latin characters in title
+        // Check for Chinese/non-Latin characters - trigger retry
         if ($this->containsNonLatinCharacters($title)) {
             $this->debugLog("Title contains non-Latin characters (Chinese?): {$title}");
-            return false;
+            return 'retry';
         }
 
         // Check description
@@ -311,10 +334,10 @@ Now analyze this image. If subject appears INDIAN, use Hindi Romaji terms + West
         if (in_array(strtolower($description), ['true', 'false', 'text', 'string', 'null'])) {
             return false;
         }
-        // Reject Chinese/non-Latin characters in description
+        // Check for Chinese/non-Latin characters - trigger retry
         if ($this->containsNonLatinCharacters($description)) {
             $this->debugLog("Description contains non-Latin characters");
-            return false;
+            return 'retry';
         }
 
         // Check tags - must be array with actual tag strings
@@ -329,11 +352,11 @@ Now analyze this image. If subject appears INDIAN, use Hindi Romaji terms + West
             $this->debugLog("Tags contain placeholder values");
             return false;
         }
-        // Reject tags with Chinese characters
+        // Check tags for Chinese characters - trigger retry
         foreach ($tags as $tag) {
             if ($this->containsNonLatinCharacters($tag)) {
                 $this->debugLog("Tag contains non-Latin characters: {$tag}");
-                return false;
+                return 'retry';
             }
         }
 
@@ -697,7 +720,7 @@ Now analyze this image. If subject appears INDIAN, use Hindi Romaji terms + West
         if ($httpCode === 200) {
             return [
                 'success' => true,
-                'message' => 'Connected to OpenRouter (using Llama 3.2 Vision)',
+                'message' => 'Connected to OpenRouter (using Qwen 2.5 VL with English enforcement)',
             ];
         }
 

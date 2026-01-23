@@ -266,23 +266,11 @@ class MetadataGenerator
 
     /**
      * Process fast queue items (trusted users) - no artificial delays
+     * Uses atomic claim to prevent concurrent processing
      */
     public function processFastQueue(int $limit = 50): array
     {
         $db = app()->getDatabase();
-
-        // Get pending fast queue items where moderation is approved
-        $limit = (int) $limit;
-        $queue = $db->fetchAll(
-            "SELECT q.*, i.storage_path, i.moderation_status
-             FROM ai_processing_queue q
-             JOIN images i ON q.image_id = i.id
-             WHERE q.queue_type = 'fast'
-               AND q.status = 'pending'
-               AND i.moderation_status = 'approved'
-             ORDER BY q.priority DESC, q.created_at ASC
-             LIMIT {$limit}"
-        );
 
         $results = [
             'processed' => 0,
@@ -291,57 +279,103 @@ class MetadataGenerator
             'errors' => [],
         ];
 
-        foreach ($queue as $item) {
-            // Mark as processing
-            $db->update('ai_processing_queue', [
-                'status' => 'processing',
-                'attempts' => $item['attempts'] + 1,
-            ], 'id = :where_id', ['where_id' => $item['id']]);
+        // Process one at a time with atomic claim to prevent race conditions
+        $limit = (int) $limit;
+        for ($i = 0; $i < $limit; $i++) {
+            // Atomically claim the next pending item
+            $claimed = $this->claimNextQueueItem($db, 'fast');
+
+            if (!$claimed) {
+                break; // No more items to process
+            }
 
             // Process the image
-            $success = $this->processImage($item['image_id']);
+            $success = $this->processImage($claimed['image_id']);
 
             if ($success) {
                 // Delete from queue after successful processing
-                $db->delete('ai_processing_queue', 'id = :id', ['id' => $item['id']]);
+                $db->delete('ai_processing_queue', 'id = :id', ['id' => $claimed['id']]);
                 $results['processed']++;
             } else {
                 $errorMessage = implode('; ', $this->errors);
-                $maxAttempts = $item['max_attempts'] ?? 3;
-                $newStatus = ($item['attempts'] + 1) >= $maxAttempts ? 'failed' : 'pending';
+                $maxAttempts = $claimed['max_attempts'] ?? 3;
+                $newStatus = ($claimed['attempts']) >= $maxAttempts ? 'failed' : 'pending';
 
                 $db->update('ai_processing_queue', [
                     'status' => $newStatus,
                     'error_message' => $errorMessage,
-                ], 'id = :where_id', ['where_id' => $item['id']]);
+                ], 'id = :where_id', ['where_id' => $claimed['id']]);
 
                 $results['failed']++;
-                $results['errors'][] = "Image {$item['image_id']}: {$errorMessage}";
+                $results['errors'][] = "Image {$claimed['image_id']}: {$errorMessage}";
             }
-
-            // No delays for fast queue - process as quickly as possible
         }
 
         return $results;
     }
 
     /**
+     * Atomically claim the next queue item to prevent race conditions
+     */
+    private function claimNextQueueItem($db, string $queueType): ?array
+    {
+        // Use UPDATE with LIMIT to atomically claim an item
+        // This prevents two processes from claiming the same item
+        $db->execute(
+            "UPDATE ai_processing_queue q
+             JOIN images i ON q.image_id = i.id
+             SET q.status = 'processing', q.attempts = q.attempts + 1
+             WHERE q.queue_type = :queue_type
+               AND q.status = 'pending'
+               AND i.moderation_status = 'approved'
+             ORDER BY q.priority DESC, q.created_at ASC
+             LIMIT 1",
+            ['queue_type' => $queueType]
+        );
+
+        // Now fetch the item we just claimed
+        return $db->fetch(
+            "SELECT q.*, i.storage_path, i.moderation_status
+             FROM ai_processing_queue q
+             JOIN images i ON q.image_id = i.id
+             WHERE q.queue_type = :queue_type
+               AND q.status = 'processing'
+             ORDER BY q.created_at ASC
+             LIMIT 1",
+            ['queue_type' => $queueType]
+        );
+    }
+
+    /**
      * Process ONE scheduled image (for cron job - runs every 4 minutes)
      * Returns immediately after processing one image.
+     * Uses atomic claim to prevent concurrent processing.
      */
     public function processScheduledItem(): array
     {
         $db = app()->getDatabase();
 
-        // Get the next scheduled image that's ready to publish
-        $image = $db->fetch(
-            "SELECT i.*, q.id as queue_id
-             FROM images i
-             JOIN ai_processing_queue q ON q.image_id = i.id
+        // Atomically claim the next scheduled image
+        $db->execute(
+            "UPDATE ai_processing_queue q
+             JOIN images i ON q.image_id = i.id
+             SET q.status = 'processing', q.attempts = q.attempts + 1
              WHERE i.status = 'scheduled'
                AND i.scheduled_at <= NOW()
                AND q.queue_type = 'scheduled'
                AND q.status = 'pending'
+             ORDER BY i.scheduled_at ASC
+             LIMIT 1"
+        );
+
+        // Get the image we just claimed
+        $image = $db->fetch(
+            "SELECT i.*, q.id as queue_id, q.attempts
+             FROM images i
+             JOIN ai_processing_queue q ON q.image_id = i.id
+             WHERE i.status = 'scheduled'
+               AND q.queue_type = 'scheduled'
+               AND q.status = 'processing'
              ORDER BY i.scheduled_at ASC
              LIMIT 1"
         );
@@ -353,12 +387,6 @@ class MetadataGenerator
                 'message' => 'No scheduled images ready for processing',
             ];
         }
-
-        // Mark queue item as processing
-        $db->update('ai_processing_queue', [
-            'status' => 'processing',
-            'attempts' => 1,
-        ], 'id = :where_id', ['where_id' => $image['queue_id']]);
 
         // Mark image as processing
         $db->update('images', [
