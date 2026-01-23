@@ -8,12 +8,14 @@ declare(strict_types=1);
  * Usage: php app/Console/cli.php <command> [options]
  *
  * Commands:
- *   ai:process         Process AI queue
- *   sitemap:generate   Generate sitemaps
- *   cache:clear        Clear all caches
- *   cache:cleanup      Clean up expired cache
- *   trends:fetch       Fetch trending keywords
- *   webp:convert       Convert images to WebP format
+ *   ai:process              Process AI queue (generic)
+ *   images:process-fast     Process fast queue (trusted users, no delays)
+ *   images:process-scheduled Process ONE scheduled image (cron every 4 min)
+ *   sitemap:generate        Generate sitemaps
+ *   cache:clear             Clear all caches
+ *   cache:cleanup           Clean up expired cache
+ *   trends:fetch            Fetch trending keywords
+ *   webp:convert            Convert images to WebP format
  */
 
 // Ensure CLI only
@@ -32,6 +34,8 @@ $args = array_slice($argv, 2);
 $commands = [
     'help' => \App\Console\Commands\HelpCommand::class,
     'ai:process' => \App\Console\Commands\AiProcessCommand::class,
+    'images:process-fast' => \App\Console\Commands\ProcessFastQueueCommand::class,
+    'images:process-scheduled' => \App\Console\Commands\ProcessScheduledQueueCommand::class,
     'sitemap:generate' => \App\Console\Commands\SitemapGenerateCommand::class,
     'cache:clear' => \App\Console\Commands\CacheClearCommand::class,
     'cache:cleanup' => \App\Console\Commands\CacheCleanupCommand::class,

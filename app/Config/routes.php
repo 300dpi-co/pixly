@@ -125,6 +125,7 @@ $router->get('/my-likes', 'App\Controllers\Frontend\FavoriteController@likes', [
 $router->get('/my-saves', 'App\Controllers\Frontend\FavoriteController@saves', ['auth']);
 $router->get('/upload', 'App\Controllers\Frontend\UploadController@show', ['auth']);
 $router->post('/upload', 'App\Controllers\Frontend\UploadController@upload', ['auth', 'csrf']);
+$router->get('/upload/status/{id}', 'App\Controllers\Frontend\UploadController@status', ['auth']);
 
 // Contributor Routes
 $router->get('/contributor/request', 'App\Controllers\Frontend\ContributorController@request', ['auth']);
@@ -153,6 +154,11 @@ $router->group(['prefix' => 'api'], function (Router $router) {
     $router->delete('/favorites/{id}', 'App\Controllers\Api\FavoriteApiController@destroy', ['auth', 'csrf']);
     $router->post('/comments', 'App\Controllers\Api\CommentApiController@store', ['auth', 'csrf']);
 
+    // Queue Status API (for real-time polling)
+    $router->get('/queue/status/{id}', 'App\Controllers\Api\QueueStatusController@status', ['auth']);
+    $router->get('/queue/position/{id}', 'App\Controllers\Api\QueueStatusController@position', ['auth']);
+    $router->get('/queue/batch/{uuid}', 'App\Controllers\Api\QueueStatusController@batchStatus', ['auth']);
+
     // Reports (no auth required - anyone can report)
     $router->post('/reports', 'App\Controllers\Api\ReportApiController@store', ['csrf']);
 });
@@ -171,6 +177,13 @@ $router->group(['prefix' => 'admin', 'middleware' => ['auth', 'admin']], functio
     $router->get('/images', 'App\Controllers\Admin\ImageController@index');
     $router->get('/images/upload', 'App\Controllers\Admin\UploadController@show');
     $router->post('/images/upload', 'App\Controllers\Admin\UploadController@upload', ['csrf']);
+
+    // Bulk Upload
+    $router->get('/bulk-upload', 'App\Controllers\Admin\BulkUploadController@index');
+    $router->post('/bulk-upload', 'App\Controllers\Admin\BulkUploadController@upload', ['csrf']);
+    $router->get('/bulk-upload/schedule/{uuid}', 'App\Controllers\Admin\BulkUploadController@schedule');
+    $router->post('/bulk-upload/schedule/{uuid}', 'App\Controllers\Admin\BulkUploadController@scheduleSubmit', ['csrf']);
+    $router->get('/bulk-upload/status/{uuid}', 'App\Controllers\Admin\BulkUploadController@batchStatus');
     $router->post('/images/bulk', 'App\Controllers\Admin\ImageController@bulk', ['csrf']);
     $router->get('/images/{id}/edit', 'App\Controllers\Admin\ImageController@edit');
     $router->post('/images/{id}', 'App\Controllers\Admin\ImageController@update', ['csrf']);

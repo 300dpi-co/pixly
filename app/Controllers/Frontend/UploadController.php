@@ -9,6 +9,7 @@ use App\Core\Response;
 use App\Models\User;
 use App\Services\UploadService;
 use App\Services\ImageProcessor;
+use App\Services\QueueService;
 use App\Services\AI\MetadataGenerator;
 
 /**
@@ -161,21 +162,42 @@ class UploadController extends Controller
                 $this->processTags($imageId, $tags);
             }
 
-            // Queue for AI processing
-            $db->insert('ai_processing_queue', [
-                'image_id' => $imageId,
-                'task_type' => 'all',
-                'priority' => $bypassModeration ? 10 : 5,
-                'status' => 'pending',
-            ]);
+            $queueService = new QueueService();
 
-            // For bypass users (admin/trusted), process AI immediately
+            // Handle different user types differently
             if ($bypassModeration) {
+                // Trusted users: Add to fast queue with real-time status
+                $queueService->addToFastQueue($imageId, 10);
+
+                // Check if queue is busy
+                if ($queueService->isQueueBusy()) {
+                    // High traffic - redirect to status page
+                    return $this->redirectWithSuccess(
+                        '/upload/status/' . $imageId,
+                        'High traffic detected. Your image is in queue, check back later.'
+                    );
+                }
+
+                // Process immediately for trusted users
                 $this->processImageAI($imageId);
-                return $this->redirectWithSuccess('/image/' . $slug, 'Image uploaded successfully!');
+
+                // Check if it was published
+                $image = $db->fetch("SELECT status, slug FROM images WHERE id = :id", ['id' => $imageId]);
+                if ($image && $image['status'] === 'published') {
+                    return $this->redirectWithSuccess('/image/' . $image['slug'], 'Image uploaded and published!');
+                }
+
+                // Still processing or failed - redirect to status page
+                return $this->redirectWithSuccess('/upload/status/' . $imageId, 'Image uploaded! Processing...');
             }
 
-            return $this->redirectWithSuccess('/upload', 'Image uploaded! It will be visible after moderation.');
+            // Regular users: Add to moderation queue
+            $queueService->addToModerationQueue($imageId);
+
+            return $this->redirectWithSuccess(
+                '/upload',
+                'Thanks for uploading! Your image will be published within 24 hours after moderation.'
+            );
 
         } catch (\Exception $e) {
             $uploadService->delete($uploadResult['relative_path']);
@@ -292,6 +314,46 @@ class UploadController extends Controller
             return true;
         }
         return false;
+    }
+
+    /**
+     * Show upload status page (for trusted users)
+     */
+    public function status(int $id): Response
+    {
+        $db = $this->db();
+        $user = $this->user();
+
+        // Get image
+        $image = $db->fetch(
+            "SELECT id, title, slug, status, queue_type, thumbnail_path, uploaded_by
+             FROM images WHERE id = :id",
+            ['id' => $id]
+        );
+
+        if (!$image) {
+            return $this->redirectWithError('/upload', 'Image not found.');
+        }
+
+        // Verify ownership
+        if ($image['uploaded_by'] != $user['id']) {
+            return $this->redirectWithError('/upload', 'Access denied.');
+        }
+
+        // If already published, redirect to image page
+        if ($image['status'] === 'published') {
+            return $this->redirect('/image/' . $image['slug']);
+        }
+
+        $queueService = new QueueService();
+        $queueStatus = $queueService->getImageQueueStatus($id);
+
+        return $this->view('frontend/upload-status', [
+            'title' => 'Upload Status',
+            'meta_description' => 'Check the status of your uploaded image',
+            'image' => $image,
+            'queueStatus' => $queueStatus,
+        ]);
     }
 
     /**

@@ -275,6 +275,65 @@ class MigrationRunner
             $this->addSetting('openrouter_api_key', '', 'encrypted', 'OpenRouter API key for Qwen 2.5 VL image analysis');
             $this->markComplete('add_openrouter_settings');
         }
+
+        // Migration: Add scheduling columns to images table
+        if (!$this->hasRun('add_image_scheduling_columns')) {
+            $this->addColumn('images', 'scheduled_at', 'DATETIME NULL AFTER published_at');
+            $this->addColumn('images', 'queue_type', "ENUM('fast','scheduled','moderation') DEFAULT NULL");
+            $this->addColumn('images', 'batch_id', 'INT UNSIGNED DEFAULT NULL');
+            $this->markComplete('add_image_scheduling_columns');
+        }
+
+        // Migration: Update images status ENUM to include new statuses
+        if (!$this->hasRun('update_images_status_enum')) {
+            try {
+                // MySQL allows modifying ENUM to add new values
+                $this->db->execute("
+                    ALTER TABLE images MODIFY COLUMN status
+                    ENUM('draft','processing','queued','scheduled','published','archived','deleted','rejected')
+                    DEFAULT 'draft'
+                ");
+                $this->log[] = "Updated images.status ENUM with new values";
+            } catch (\Throwable $e) {
+                $this->logError("Failed to update images.status ENUM: " . $e->getMessage());
+            }
+            $this->markComplete('update_images_status_enum');
+        }
+
+        // Migration: Add queue_type column to ai_processing_queue
+        if (!$this->hasRun('add_queue_type_to_ai_queue')) {
+            $this->addColumn('ai_processing_queue', 'queue_type', "ENUM('fast','scheduled') DEFAULT 'fast'");
+            $this->markComplete('add_queue_type_to_ai_queue');
+        }
+
+        // Migration: Create upload_batches table
+        if (!$this->hasRun('create_upload_batches_table')) {
+            if (!$this->tableExists('upload_batches')) {
+                try {
+                    $this->db->execute("
+                        CREATE TABLE upload_batches (
+                            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                            uuid CHAR(36) NOT NULL UNIQUE,
+                            user_id INT UNSIGNED NOT NULL,
+                            total_images INT UNSIGNED DEFAULT 0,
+                            processed_images INT UNSIGNED DEFAULT 0,
+                            schedule_type ENUM('scheduled','auto_publish') NOT NULL,
+                            scheduled_start_at DATETIME NULL,
+                            publish_interval_minutes INT UNSIGNED DEFAULT 4,
+                            status ENUM('pending','processing','completed','cancelled') DEFAULT 'pending',
+                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                            completed_at DATETIME NULL,
+                            INDEX idx_status (status),
+                            INDEX idx_user (user_id)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                    ");
+                    $this->log[] = "Created upload_batches table";
+                } catch (\Throwable $e) {
+                    $this->logError("Failed to create upload_batches table: " . $e->getMessage());
+                }
+            }
+            $this->markComplete('create_upload_batches_table');
+        }
     }
 
     /**

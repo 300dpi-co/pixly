@@ -196,7 +196,7 @@ class MetadataGenerator
     }
 
     /**
-     * Process multiple images from queue
+     * Process multiple images from queue (generic)
      */
     public function processQueue(int $limit = 10): array
     {
@@ -256,6 +256,156 @@ class MetadataGenerator
         }
 
         return $results;
+    }
+
+    /**
+     * Process fast queue items (trusted users) - no artificial delays
+     */
+    public function processFastQueue(int $limit = 50): array
+    {
+        $db = app()->getDatabase();
+
+        // Get pending fast queue items where moderation is approved
+        $limit = (int) $limit;
+        $queue = $db->fetchAll(
+            "SELECT q.*, i.storage_path, i.moderation_status
+             FROM ai_processing_queue q
+             JOIN images i ON q.image_id = i.id
+             WHERE q.queue_type = 'fast'
+               AND q.status = 'pending'
+               AND i.moderation_status = 'approved'
+             ORDER BY q.priority DESC, q.created_at ASC
+             LIMIT {$limit}"
+        );
+
+        $results = [
+            'processed' => 0,
+            'failed' => 0,
+            'skipped' => 0,
+            'errors' => [],
+        ];
+
+        foreach ($queue as $item) {
+            // Mark as processing
+            $db->update('ai_processing_queue', [
+                'status' => 'processing',
+                'attempts' => $item['attempts'] + 1,
+            ], 'id = :where_id', ['where_id' => $item['id']]);
+
+            // Process the image
+            $success = $this->processImage($item['image_id']);
+
+            if ($success) {
+                // Delete from queue after successful processing
+                $db->delete('ai_processing_queue', 'id = :id', ['id' => $item['id']]);
+                $results['processed']++;
+            } else {
+                $errorMessage = implode('; ', $this->errors);
+                $maxAttempts = $item['max_attempts'] ?? 3;
+                $newStatus = ($item['attempts'] + 1) >= $maxAttempts ? 'failed' : 'pending';
+
+                $db->update('ai_processing_queue', [
+                    'status' => $newStatus,
+                    'error_message' => $errorMessage,
+                ], 'id = :where_id', ['where_id' => $item['id']]);
+
+                $results['failed']++;
+                $results['errors'][] = "Image {$item['image_id']}: {$errorMessage}";
+            }
+
+            // No delays for fast queue - process as quickly as possible
+        }
+
+        return $results;
+    }
+
+    /**
+     * Process ONE scheduled image (for cron job - runs every 4 minutes)
+     * Returns immediately after processing one image.
+     */
+    public function processScheduledItem(): array
+    {
+        $db = app()->getDatabase();
+
+        // Get the next scheduled image that's ready to publish
+        $image = $db->fetch(
+            "SELECT i.*, q.id as queue_id
+             FROM images i
+             JOIN ai_processing_queue q ON q.image_id = i.id
+             WHERE i.status = 'scheduled'
+               AND i.scheduled_at <= NOW()
+               AND q.queue_type = 'scheduled'
+               AND q.status = 'pending'
+             ORDER BY i.scheduled_at ASC
+             LIMIT 1"
+        );
+
+        if (!$image) {
+            return [
+                'processed' => 0,
+                'failed' => 0,
+                'message' => 'No scheduled images ready for processing',
+            ];
+        }
+
+        // Mark queue item as processing
+        $db->update('ai_processing_queue', [
+            'status' => 'processing',
+            'attempts' => 1,
+        ], 'id = :where_id', ['where_id' => $image['queue_id']]);
+
+        // Mark image as processing
+        $db->update('images', [
+            'status' => 'processing',
+        ], 'id = :where_id', ['where_id' => $image['id']]);
+
+        // Process the image with AI
+        $success = $this->processImage($image['id']);
+
+        if ($success) {
+            // Delete from queue
+            $db->delete('ai_processing_queue', 'id = :id', ['id' => $image['queue_id']]);
+
+            // Update batch progress if part of a batch
+            if ($image['batch_id']) {
+                $queueService = new \App\Services\QueueService();
+                $queueService->updateBatchProgress((int) $image['batch_id']);
+            }
+
+            return [
+                'processed' => 1,
+                'failed' => 0,
+                'image_id' => $image['id'],
+                'title' => $image['title'],
+                'message' => 'Successfully processed and published',
+            ];
+        } else {
+            $errorMessage = implode('; ', $this->errors);
+
+            // Still try to publish without AI metadata
+            $db->update('images', [
+                'status' => 'published',
+                'published_at' => date('Y-m-d H:i:s'),
+            ], 'id = :where_id', ['where_id' => $image['id']]);
+
+            $db->update('ai_processing_queue', [
+                'status' => 'failed',
+                'error_message' => $errorMessage,
+            ], 'id = :where_id', ['where_id' => $image['queue_id']]);
+
+            // Update batch progress
+            if ($image['batch_id']) {
+                $queueService = new \App\Services\QueueService();
+                $queueService->updateBatchProgress((int) $image['batch_id']);
+            }
+
+            return [
+                'processed' => 1,
+                'failed' => 1,
+                'image_id' => $image['id'],
+                'message' => "Published without AI metadata: {$errorMessage}",
+            ];
+        }
     }
 
     /**
