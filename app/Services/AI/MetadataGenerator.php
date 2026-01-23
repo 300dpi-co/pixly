@@ -209,7 +209,7 @@ class MetadataGenerator
              FROM ai_processing_queue q
              JOIN images i ON q.image_id = i.id
              WHERE q.status = 'pending'
-             ORDER BY q.priority DESC, q.scheduled_at ASC
+             ORDER BY q.priority DESC, q.created_at ASC
              LIMIT {$limit}"
         );
 
@@ -223,7 +223,6 @@ class MetadataGenerator
             // Mark as processing
             $db->update('ai_processing_queue', [
                 'status' => 'processing',
-                'started_at' => date('Y-m-d H:i:s'),
                 'attempts' => $item['attempts'] + 1,
             ], 'id = :where_id', ['where_id' => $item['id']]);
 
@@ -233,12 +232,12 @@ class MetadataGenerator
             if ($success) {
                 $db->update('ai_processing_queue', [
                     'status' => 'completed',
-                    'completed_at' => date('Y-m-d H:i:s'),
                 ], 'id = :where_id', ['where_id' => $item['id']]);
                 $results['processed']++;
             } else {
                 $errorMessage = implode('; ', $this->errors);
-                $newStatus = $item['attempts'] + 1 >= $item['max_attempts'] ? 'failed' : 'pending';
+                $maxAttempts = $item['max_attempts'] ?? 3; // Default to 3 attempts
+                $newStatus = ($item['attempts'] + 1) >= $maxAttempts ? 'failed' : 'pending';
 
                 $db->update('ai_processing_queue', [
                     'status' => $newStatus,
