@@ -71,7 +71,7 @@ OUTPUT FORMAT (JSON):
   \"title\": \"Creative, seductive English title (5-10 words)\",
   \"description\": \"2-3 English sentences describing the subject, pose, setting, mood\",
   \"tags\": [\"15 lowercase English tags: body type, hair color, clothing, pose, setting, mood\"],
-  \"category\": \"EXACTLY ONE from: {$categoryList}\",
+  \"categories\": [\"1-3 best matching categories from: {$categoryList}\"],
   \"alt_text\": \"Brief 10-15 word English description\"
 }
 
@@ -80,11 +80,11 @@ EXAMPLE - Blonde woman in lingerie on bed:
   \"title\": \"Stunning Blonde Beauty in Black Lace Lingerie\",
   \"description\": \"A gorgeous blonde woman poses seductively in elegant black lace lingerie. Her confident gaze and perfect curves create an alluring bedroom atmosphere.\",
   \"tags\": [\"blonde\", \"lingerie\", \"black lace\", \"seductive\", \"curvy\", \"bedroom\", \"glamour\", \"sexy\", \"confident\", \"beautiful\", \"model\", \"intimate\", \"sensual\", \"elegant\", \"boudoir\"],
-  \"category\": \"Lingerie\",
+  \"categories\": [\"Lingerie\", \"Blonde\", \"Babe\"],
   \"alt_text\": \"Blonde woman in black lace lingerie posing seductively on bed\"
 }
 
-Now analyze this image and generate English metadata. Pick the BEST matching category from the list.";
+Now analyze this image and generate English metadata. Pick 1-3 BEST matching categories.";
 
         $this->debugLog("Sending request to OpenRouter...");
 
@@ -304,8 +304,16 @@ Now analyze this image and generate English metadata. Pick the BEST matching cat
         $title = $result['title'] ?? 'Untitled';
         $description = $result['description'] ?? '';
         $tags = $result['tags'] ?? [];
-        $category = $result['category'] ?? '';
         $altText = $result['alt_text'] ?? substr($description, 0, 125);
+
+        // Get categories from AI (supports both old "category" string and new "categories" array)
+        $aiCategories = $result['categories'] ?? [];
+        if (empty($aiCategories) && !empty($result['category'])) {
+            $aiCategories = [$result['category']]; // Backwards compatibility
+        }
+        if (is_string($aiCategories)) {
+            $aiCategories = [$aiCategories];
+        }
 
         // Ensure tags is an array
         if (is_string($tags)) {
@@ -317,37 +325,48 @@ Now analyze this image and generate English metadata. Pick the BEST matching cat
         $tags = array_map(fn($t) => strtolower(trim($t)), $tags);
         $tags = array_unique($tags);
 
-        // Match category to existing categories (prioritize exact match)
+        // Match AI categories to existing categories (max 3)
         $categories = [];
-        if (!empty($category)) {
-            $categoryLower = strtolower(trim($category));
+        foreach ($aiCategories as $aiCat) {
+            if (count($categories) >= 3) break; // Max 3 categories
+            if (empty($aiCat)) continue;
+
+            $aiCatLower = strtolower(trim($aiCat));
+            $matched = false;
 
             // First try exact match (case-insensitive)
             foreach ($existingCategories as $cat) {
-                if (strtolower($cat['name']) === $categoryLower) {
-                    $categories[] = $cat['name'];
-                    $this->debugLog("Category exact match: {$cat['name']}");
+                if (strtolower($cat['name']) === $aiCatLower) {
+                    if (!in_array($cat['name'], $categories)) {
+                        $categories[] = $cat['name'];
+                        $this->debugLog("Category exact match: {$cat['name']}");
+                    }
+                    $matched = true;
                     break;
                 }
             }
 
             // If no exact match, try partial match
-            if (empty($categories)) {
+            if (!$matched) {
                 foreach ($existingCategories as $cat) {
                     $catLower = strtolower($cat['name']);
-                    if (str_contains($catLower, $categoryLower) || str_contains($categoryLower, $catLower)) {
-                        $categories[] = $cat['name'];
-                        $this->debugLog("Category partial match: {$cat['name']} (AI said: {$category})");
+                    if (str_contains($catLower, $aiCatLower) || str_contains($aiCatLower, $catLower)) {
+                        if (!in_array($cat['name'], $categories)) {
+                            $categories[] = $cat['name'];
+                            $this->debugLog("Category partial match: {$cat['name']} (AI said: {$aiCat})");
+                        }
+                        $matched = true;
                         break;
                     }
                 }
             }
 
-            // Log if no match found
-            if (empty($categories)) {
-                $this->debugLog("No category match found for: {$category}");
+            if (!$matched) {
+                $this->debugLog("No category match found for: {$aiCat}");
             }
         }
+
+        $this->debugLog("Final categories (" . count($categories) . "): " . implode(', ', $categories));
 
         // Extract colors from tags
         $colors = $this->extractColors($tags);
