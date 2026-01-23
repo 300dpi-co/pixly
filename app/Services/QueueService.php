@@ -295,7 +295,8 @@ class QueueService
 
         foreach ($images as $index => $image) {
             $scheduledAt = clone $startTime;
-            $scheduledAt->modify("+{$index} * {$intervalMinutes} minutes");
+            $minutesToAdd = $index * $intervalMinutes;
+            $scheduledAt->modify("+{$minutesToAdd} minutes");
 
             $this->db->update('images', [
                 'status' => 'scheduled',
