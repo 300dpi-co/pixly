@@ -34,9 +34,11 @@ class AIController extends Controller
 
         // Clean up: Remove orphaned queue entries for already-published images
         $db->execute(
-            "DELETE q FROM ai_processing_queue q
-             JOIN images i ON q.image_id = i.id
-             WHERE i.status = 'published' AND i.ai_processed_at IS NOT NULL"
+            "DELETE FROM ai_processing_queue
+             WHERE image_id IN (
+                 SELECT id FROM images
+                 WHERE status = 'published' AND ai_processed_at IS NOT NULL
+             )"
         );
 
         // Reset any stuck "processing" entries back to pending (older than 10 min)
