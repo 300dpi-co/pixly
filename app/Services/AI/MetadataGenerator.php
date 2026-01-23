@@ -124,6 +124,9 @@ class MetadataGenerator
             return false;
         }
 
+        // Reconnect to database - connection may have timed out during long AI processing
+        $db = app()->reconnectDatabase();
+
         // Update image record with AI-generated data
         $updates = [
             'ai_description' => $analysis['description'] ?? null,

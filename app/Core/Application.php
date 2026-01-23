@@ -194,6 +194,15 @@ class Application
     }
 
     /**
+     * Force reconnect to database (useful after long-running operations)
+     */
+    public function reconnectDatabase(): Database
+    {
+        $this->database = new Database($this->config['database']);
+        return $this->database;
+    }
+
+    /**
      * Get configuration array
      */
     public function getConfig(): array
