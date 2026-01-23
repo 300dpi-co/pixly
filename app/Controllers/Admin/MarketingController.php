@@ -653,9 +653,13 @@ class MarketingController extends Controller
     public function tracking(): Response
     {
         $settings = MarketingSetting::byGroup('tracking');
+        $verificationSettings = MarketingSetting::byGroup('verification');
+
+        // Merge both groups
+        $settings = array_merge($settings, $verificationSettings);
 
         return $this->view('admin/marketing/tracking', [
-            'title' => 'Tracking Codes',
+            'title' => 'Tracking & Verification',
             'settings' => $settings,
         ], 'admin');
     }
@@ -666,16 +670,32 @@ class MarketingController extends Controller
     public function updateTracking(): Response
     {
         $data = $this->request->all();
+        $section = $data['_section'] ?? 'tracking';
 
-        MarketingSetting::updateMany([
-            'google_analytics_id' => $data['google_analytics_id'] ?? '',
-            'gtm_id' => $data['gtm_id'] ?? '',
-            'facebook_pixel_id' => $data['facebook_pixel_id'] ?? '',
-            'custom_head_scripts' => $data['custom_head_scripts'] ?? '',
-            'custom_body_scripts' => $data['custom_body_scripts'] ?? '',
-        ], 'tracking');
+        if ($section === 'verification') {
+            // Site verification tags
+            MarketingSetting::updateMany([
+                'verify_google' => $data['verify_google'] ?? '',
+                'verify_bing' => $data['verify_bing'] ?? '',
+                'verify_facebook' => $data['verify_facebook'] ?? '',
+                'verify_pinterest' => $data['verify_pinterest'] ?? '',
+                'verify_yandex' => $data['verify_yandex'] ?? '',
+            ], 'verification');
 
-        session_flash('success', 'Tracking codes updated successfully.');
+            session_flash('success', 'Site verification tags updated successfully.');
+        } else {
+            // Tracking codes
+            MarketingSetting::updateMany([
+                'google_analytics_id' => $data['google_analytics_id'] ?? '',
+                'gtm_id' => $data['gtm_id'] ?? '',
+                'facebook_pixel_id' => $data['facebook_pixel_id'] ?? '',
+                'custom_head_scripts' => $data['custom_head_scripts'] ?? '',
+                'custom_body_scripts' => $data['custom_body_scripts'] ?? '',
+            ], 'tracking');
+
+            session_flash('success', 'Tracking codes updated successfully.');
+        }
+
         return Response::redirect('/admin/marketing/tracking');
     }
 

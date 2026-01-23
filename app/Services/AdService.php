@@ -327,6 +327,32 @@ class AdService
     {
         $codes = [];
 
+        // Site Verification Meta Tags
+        $verifyGoogle = $this->settings['verify_google'] ?? '';
+        if (!empty($verifyGoogle)) {
+            $codes[] = sprintf('<meta name="google-site-verification" content="%s">', htmlspecialchars($verifyGoogle));
+        }
+
+        $verifyBing = $this->settings['verify_bing'] ?? '';
+        if (!empty($verifyBing)) {
+            $codes[] = sprintf('<meta name="msvalidate.01" content="%s">', htmlspecialchars($verifyBing));
+        }
+
+        $verifyFacebook = $this->settings['verify_facebook'] ?? '';
+        if (!empty($verifyFacebook)) {
+            $codes[] = sprintf('<meta name="facebook-domain-verification" content="%s">', htmlspecialchars($verifyFacebook));
+        }
+
+        $verifyPinterest = $this->settings['verify_pinterest'] ?? '';
+        if (!empty($verifyPinterest)) {
+            $codes[] = sprintf('<meta name="p:domain_verify" content="%s">', htmlspecialchars($verifyPinterest));
+        }
+
+        $verifyYandex = $this->settings['verify_yandex'] ?? '';
+        if (!empty($verifyYandex)) {
+            $codes[] = sprintf('<meta name="yandex-verification" content="%s">', htmlspecialchars($verifyYandex));
+        }
+
         // Google Analytics
         $gaId = $this->settings['google_analytics_id'] ?? '';
         if (!empty($gaId)) {
