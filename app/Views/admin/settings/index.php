@@ -802,7 +802,7 @@
                 foreach ($currentGroup['settings'] as $s) {
                     $apiSettings[$s['setting_key']] = $s['setting_value'];
                 }
-                $currentProvider = $apiSettings['ai_provider'] ?? 'aihorde';
+                $currentProvider = $apiSettings['ai_provider'] ?? 'openrouter';
                 ?>
 
                 <form method="POST" action="/admin/settings" class="p-6">
@@ -812,8 +812,38 @@
                     <div class="space-y-6">
                         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                             <p class="text-sm text-blue-800">
-                                <strong>AI Providers:</strong> Enable the providers you want to use. The first enabled provider with a valid API key will be used for image analysis.
+                                <strong>AI Providers:</strong> Enable the provider you want to use for automatic image analysis. OpenRouter is recommended for speed and reliability.
                             </p>
+                        </div>
+
+                        <!-- OpenRouter (Recommended) -->
+                        <div class="border rounded-lg p-4" id="openrouter-section">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-bold">OR</div>
+                                    <div>
+                                        <span class="font-medium text-neutral-900">OpenRouter</span>
+                                        <span class="ml-2 text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded">Recommended</span>
+                                        <span class="ml-1 text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded">$0.30/1000 images</span>
+                                        <p class="text-sm text-neutral-500">Fast Qwen 2.5 VL - title, tags, category in one pass (no refusals)</p>
+                                    </div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="hidden" name="ai_provider_openrouter" value="0">
+                                    <input type="checkbox" name="ai_provider_openrouter" value="1" class="sr-only peer" <?= $currentProvider === 'openrouter' ? 'checked' : '' ?> onchange="updateProvider(this, 'openrouter')">
+                                    <div class="w-11 h-6 bg-neutral-200 peer-focus:ring-2 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                                </label>
+                            </div>
+                            <div class="mt-3">
+                                <?php
+                                $orKey = $apiSettings['openrouter_api_key'] ?? '';
+                                $orMasked = $orKey ? substr($orKey, 0, 8) . str_repeat('*', max(0, strlen($orKey) - 12)) . substr($orKey, -4) : '';
+                                ?>
+                                <input type="text" name="openrouter_api_key" value="<?= e($orMasked) ?>"
+                                       placeholder="sk-or-v1-..."
+                                       class="w-full px-3 py-2 border rounded-lg font-mono text-sm">
+                                <p class="text-xs text-neutral-500 mt-1">Get from <a href="https://openrouter.ai/keys" target="_blank" class="text-primary-600 hover:underline">openrouter.ai/keys</a> (add $5 credit, lasts months)</p>
+                            </div>
                         </div>
 
                         <!-- AI Horde -->
@@ -823,9 +853,9 @@
                                     <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center text-white font-bold">AH</div>
                                     <div>
                                         <span class="font-medium text-neutral-900">AI Horde</span>
-                                        <span class="ml-2 text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded">Recommended</span>
                                         <span class="ml-1 text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">Free</span>
-                                        <p class="text-sm text-neutral-500">Free image captioning + Danbooru tags for adult content</p>
+                                        <span class="ml-1 text-xs px-2 py-0.5 bg-orange-100 text-orange-700 rounded">Slow</span>
+                                        <p class="text-sm text-neutral-500">Free but can take 60+ seconds per image</p>
                                     </div>
                                 </div>
                                 <label class="relative inline-flex items-center cursor-pointer">
@@ -951,14 +981,14 @@
                         });
                         document.getElementById(provider + '-section').classList.add('border-primary-300', 'bg-primary-50/30');
                     } else {
-                        // If unchecking, default to aihorde
-                        document.querySelector('input[name="ai_provider_aihorde"][type="checkbox"]').checked = true;
-                        document.getElementById('ai_provider_value').value = 'aihorde';
+                        // If unchecking, default to openrouter
+                        document.querySelector('input[name="ai_provider_openrouter"][type="checkbox"]').checked = true;
+                        document.getElementById('ai_provider_value').value = 'openrouter';
 
                         document.querySelectorAll('[id$="-section"]').forEach(section => {
                             section.classList.remove('border-primary-300', 'bg-primary-50/30');
                         });
-                        document.getElementById('aihorde-section').classList.add('border-primary-300', 'bg-primary-50/30');
+                        document.getElementById('openrouter-section').classList.add('border-primary-300', 'bg-primary-50/30');
                     }
                 }
 

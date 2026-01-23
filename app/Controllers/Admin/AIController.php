@@ -9,6 +9,7 @@ use App\Core\Response;
 use App\Services\ClaudeAIService;
 use App\Services\ReplicateAIService;
 use App\Services\AIHordeService;
+use App\Services\OpenRouterService;
 use App\Services\AI\MetadataGenerator;
 
 /**
@@ -32,7 +33,9 @@ class AIController extends Controller
         $provider = $generator->getProvider();
 
         // Check if the current provider is configured
-        if ($provider === 'aihorde') {
+        if ($provider === 'openrouter') {
+            $ai = new OpenRouterService();
+        } elseif ($provider === 'aihorde') {
             $ai = new AIHordeService();
         } elseif ($provider === 'replicate') {
             $ai = new ReplicateAIService();
@@ -89,7 +92,8 @@ class AIController extends Controller
             'isConfigured' => $ai->isConfigured(),
             'provider' => $provider,
             'providerName' => match($provider) {
-                'aihorde' => 'AI Horde (Caption + Danbooru Tags)',
+                'openrouter' => 'OpenRouter (Qwen 2.5 VL)',
+                'aihorde' => 'AI Horde (Caption + Tags)',
                 'replicate' => 'Replicate (LLaVA)',
                 default => 'Claude',
             },

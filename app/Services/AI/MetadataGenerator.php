@@ -7,16 +7,17 @@ namespace App\Services\AI;
 use App\Services\ClaudeAIService;
 use App\Services\ReplicateAIService;
 use App\Services\AIHordeService;
+use App\Services\OpenRouterService;
 
 /**
  * Metadata Generator
  *
  * Uses AI to generate SEO-optimized metadata for images.
- * Supports AI Horde (free), Claude, and Replicate backends.
+ * Supports OpenRouter (recommended), AI Horde, Claude, and Replicate backends.
  */
 class MetadataGenerator
 {
-    private ClaudeAIService|ReplicateAIService|AIHordeService $ai;
+    private ClaudeAIService|ReplicateAIService|AIHordeService|OpenRouterService $ai;
     private string $provider;
     private array $errors = [];
 
@@ -24,7 +25,9 @@ class MetadataGenerator
     {
         $this->provider = $provider ?? $this->getConfiguredProvider();
 
-        if ($this->provider === 'aihorde') {
+        if ($this->provider === 'openrouter') {
+            $this->ai = new OpenRouterService();
+        } elseif ($this->provider === 'aihorde') {
             $this->ai = new AIHordeService();
         } elseif ($this->provider === 'replicate') {
             $this->ai = new ReplicateAIService();
@@ -50,7 +53,12 @@ class MetadataGenerator
             // Fall through
         }
 
-        // Check which API key is configured (priority: AI Horde > Replicate > Claude)
+        // Check which API key is configured (priority: OpenRouter > AI Horde > Replicate > Claude)
+        $openrouter = new OpenRouterService();
+        if ($openrouter->isConfigured()) {
+            return 'openrouter';
+        }
+
         $aihorde = new AIHordeService();
         if ($aihorde->isConfigured()) {
             return 'aihorde';

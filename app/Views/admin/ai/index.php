@@ -95,9 +95,9 @@
             </a>
             <p class="text-sm text-neutral-500 mt-4">
                 Get API keys from:
-                <a href="https://stablehorde.net/register" target="_blank" class="text-primary-600 hover:underline">AI Horde</a> (recommended, free) |
-                <a href="https://replicate.com/account/api-tokens" target="_blank" class="text-primary-600 hover:underline">Replicate</a> |
-                <a href="https://console.anthropic.com" target="_blank" class="text-primary-600 hover:underline">Claude</a>
+                <a href="https://openrouter.ai/keys" target="_blank" class="text-primary-600 hover:underline">OpenRouter</a> (recommended, $0.30/1000 images) |
+                <a href="https://stablehorde.net/register" target="_blank" class="text-primary-600 hover:underline">AI Horde</a> (free, slow) |
+                <a href="https://replicate.com/account/api-tokens" target="_blank" class="text-primary-600 hover:underline">Replicate</a>
             </p>
         </div>
         <?php endif; ?>

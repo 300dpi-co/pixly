@@ -269,6 +269,12 @@ class MigrationRunner
             );
             $this->markComplete('add_aihorde_settings');
         }
+
+        // Migration: Add OpenRouter settings (recommended - fast & cheap)
+        if (!$this->hasRun('add_openrouter_settings')) {
+            $this->addSetting('openrouter_api_key', '', 'encrypted', 'OpenRouter API key for Qwen 2.5 VL image analysis');
+            $this->markComplete('add_openrouter_settings');
+        }
     }
 
     /**
