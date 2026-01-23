@@ -132,26 +132,45 @@ Now analyze this image. If subject appears INDIAN, use Hindi Romaji terms + West
             'response_format' => ['type' => 'json_object']
         ];
 
-        $ch = curl_init(self::API_URL);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_TIMEOUT => self::TIMEOUT,
-            CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer ' . $this->apiKey,
-                'Content-Type: application/json',
-                'HTTP-Referer: https://freewallpapers.pics',
-                'X-Title: Pixly Gallery Auto-Tagger'
-            ],
-            CURLOPT_POSTFIELDS => json_encode($data)
-        ]);
+        // Retry logic for rate limiting (429 errors)
+        $maxRetries = 3;
+        $response = null;
+        $httpCode = 0;
+        $curlError = '';
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
+        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            $ch = curl_init(self::API_URL);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_TIMEOUT => self::TIMEOUT,
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: Bearer ' . $this->apiKey,
+                    'Content-Type: application/json',
+                    'HTTP-Referer: https://freewallpapers.pics',
+                    'X-Title: Pixly Gallery Auto-Tagger'
+                ],
+                CURLOPT_POSTFIELDS => json_encode($data)
+            ]);
 
-        $this->debugLog("HTTP Code: {$httpCode}");
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+            curl_close($ch);
+
+            $this->debugLog("Attempt {$attempt} - HTTP Code: {$httpCode}");
+
+            // If rate limited (429), wait and retry
+            if ($httpCode === 429 && $attempt < $maxRetries) {
+                $waitTime = $attempt * 3; // 3s, 6s, 9s
+                $this->debugLog("Rate limited, waiting {$waitTime}s before retry...");
+                sleep($waitTime);
+                continue;
+            }
+
+            // Success or non-retryable error, break out
+            break;
+        }
 
         if ($response === false) {
             $this->debugLog("cURL error: {$curlError}");

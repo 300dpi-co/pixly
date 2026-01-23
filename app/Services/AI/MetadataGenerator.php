@@ -219,7 +219,14 @@ class MetadataGenerator
             'errors' => [],
         ];
 
+        $isFirstItem = true;
         foreach ($queue as $item) {
+            // Add delay between API calls to avoid rate limiting (skip for first item)
+            if (!$isFirstItem) {
+                sleep(2); // 2 second delay between images
+            }
+            $isFirstItem = false;
+
             // Mark as processing
             $db->update('ai_processing_queue', [
                 'status' => 'processing',
