@@ -74,6 +74,25 @@
             </div>
         </div>
         <?php endif; ?>
+
+        <!-- Action Buttons (show if not completed) -->
+        <?php if ($batch['status'] !== 'completed' && $stats['published'] < $stats['total']): ?>
+        <div class="mt-6 flex gap-3">
+            <form action="<?= $view->url('/admin/bulk-upload/reschedule/' . $batch['uuid']) ?>" method="POST" class="inline">
+                <?= $view->csrf() ?>
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+                    Reschedule Now
+                </button>
+            </form>
+            <form action="<?= $view->url('/admin/bulk-upload/publish-all/' . $batch['uuid']) ?>" method="POST" class="inline"
+                  onsubmit="return confirm('Publish all images immediately without AI processing?')">
+                <?= $view->csrf() ?>
+                <button type="submit" class="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700">
+                    Publish All Now
+                </button>
+            </form>
+        </div>
+        <?php endif; ?>
     </div>
 
     <!-- Images List -->

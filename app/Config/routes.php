@@ -184,6 +184,8 @@ $router->group(['prefix' => 'admin', 'middleware' => ['auth', 'admin']], functio
     $router->get('/bulk-upload/schedule/{uuid}', 'App\Controllers\Admin\BulkUploadController@schedule');
     $router->post('/bulk-upload/schedule/{uuid}', 'App\Controllers\Admin\BulkUploadController@scheduleSubmit', ['csrf']);
     $router->get('/bulk-upload/status/{uuid}', 'App\Controllers\Admin\BulkUploadController@batchStatus');
+    $router->post('/bulk-upload/reschedule/{uuid}', 'App\Controllers\Admin\BulkUploadController@reschedule', ['csrf']);
+    $router->post('/bulk-upload/publish-all/{uuid}', 'App\Controllers\Admin\BulkUploadController@publishAll', ['csrf']);
     $router->post('/images/bulk', 'App\Controllers\Admin\ImageController@bulk', ['csrf']);
     $router->get('/images/{id}/edit', 'App\Controllers\Admin\ImageController@edit');
     $router->post('/images/{id}', 'App\Controllers\Admin\ImageController@update', ['csrf']);

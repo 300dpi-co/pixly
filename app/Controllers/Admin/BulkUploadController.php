@@ -233,6 +233,78 @@ class BulkUploadController extends Controller
     }
 
     /**
+     * Reschedule a stuck batch
+     */
+    public function reschedule(string $uuid): Response
+    {
+        $queueService = new QueueService();
+        $batch = $queueService->getBatchByUuid($uuid);
+
+        if (!$batch) {
+            return $this->redirectWithError(url('/admin/bulk-upload'), 'Batch not found.');
+        }
+
+        if ($batch['user_id'] != $this->user()['id']) {
+            return $this->redirectWithError(url('/admin/bulk-upload'), 'Access denied.');
+        }
+
+        $db = $this->db();
+        $interval = (int) ($batch['publish_interval_minutes'] ?: 4);
+        $startTime = date('Y-m-d H:i:s');
+
+        // Reschedule all unpublished images in this batch
+        $queueService->scheduleBatchImages($batch['id'], $startTime, $interval);
+
+        return $this->redirectWithSuccess(
+            url('/admin/bulk-upload/status/' . $uuid),
+            'Batch rescheduled! Images will start publishing now.'
+        );
+    }
+
+    /**
+     * Publish all images in a batch immediately (skip scheduling)
+     */
+    public function publishAll(string $uuid): Response
+    {
+        $queueService = new QueueService();
+        $batch = $queueService->getBatchByUuid($uuid);
+
+        if (!$batch) {
+            return $this->redirectWithError(url('/admin/bulk-upload'), 'Batch not found.');
+        }
+
+        if ($batch['user_id'] != $this->user()['id']) {
+            return $this->redirectWithError(url('/admin/bulk-upload'), 'Access denied.');
+        }
+
+        $db = $this->db();
+
+        // Publish all unpublished images in this batch
+        $db->execute(
+            "UPDATE images SET status = 'published', published_at = NOW()
+             WHERE batch_id = :batch_id AND status != 'published'",
+            ['batch_id' => $batch['id']]
+        );
+
+        // Mark batch as completed
+        $db->update('upload_batches', [
+            'status' => 'completed',
+            'completed_at' => date('Y-m-d H:i:s'),
+        ], 'id = :id', ['id' => $batch['id']]);
+
+        // Clean up queue
+        $db->execute(
+            "DELETE FROM ai_processing_queue WHERE image_id IN (SELECT id FROM images WHERE batch_id = :batch_id)",
+            ['batch_id' => $batch['id']]
+        );
+
+        return $this->redirectWithSuccess(
+            url('/admin/bulk-upload/status/' . $uuid),
+            'All images published!'
+        );
+    }
+
+    /**
      * Process small batch (1-3 images) immediately
      */
     private function processSmallBatch(array $files, array $user, UploadService $uploadService, ImageProcessor $imageProcessor): Response
