@@ -237,9 +237,8 @@ class MetadataGenerator
             $success = $this->processImage($item['image_id']);
 
             if ($success) {
-                $db->update('ai_processing_queue', [
-                    'status' => 'completed',
-                ], 'id = :where_id', ['where_id' => $item['id']]);
+                // Delete from queue after successful processing (keep queue clean)
+                $db->delete('ai_processing_queue', 'id = :id', ['id' => $item['id']]);
                 $results['processed']++;
             } else {
                 $errorMessage = implode('; ', $this->errors);

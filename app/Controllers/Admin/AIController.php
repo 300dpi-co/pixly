@@ -29,6 +29,15 @@ class AIController extends Controller
         // Ensure AI settings exist in database
         $this->ensureAISettingsExist($db);
 
+        // Clean up: Delete old completed entries (keep queue clean)
+        $db->execute("DELETE FROM ai_processing_queue WHERE status = 'completed'");
+
+        // Reset any stuck "processing" entries back to pending (older than 10 min)
+        $db->execute(
+            "UPDATE ai_processing_queue SET status = 'pending'
+             WHERE status = 'processing' AND updated_at < DATE_SUB(NOW(), INTERVAL 10 MINUTE)"
+        );
+
         $generator = new MetadataGenerator();
         $provider = $generator->getProvider();
 
@@ -43,47 +52,45 @@ class AIController extends Controller
             $ai = new ClaudeAIService();
         }
 
-        // Get queue stats
-        $stats = [
+        // Get IMAGE stats (synced with admin/images)
+        $imageStats = [
+            'draft' => (int) $db->fetchColumn("SELECT COUNT(*) FROM images WHERE status = 'draft'"),
+            'published' => (int) $db->fetchColumn("SELECT COUNT(*) FROM images WHERE status = 'published'"),
+            'total' => (int) $db->fetchColumn("SELECT COUNT(*) FROM images"),
+        ];
+
+        // Get QUEUE stats (only pending/failed since completed are deleted)
+        $queueStats = [
             'pending' => (int) $db->fetchColumn("SELECT COUNT(*) FROM ai_processing_queue WHERE status = 'pending'"),
             'processing' => (int) $db->fetchColumn("SELECT COUNT(*) FROM ai_processing_queue WHERE status = 'processing'"),
-            'completed' => (int) $db->fetchColumn("SELECT COUNT(*) FROM ai_processing_queue WHERE status = 'completed'"),
             'failed' => (int) $db->fetchColumn("SELECT COUNT(*) FROM ai_processing_queue WHERE status = 'failed'"),
         ];
 
-        // Get queue items
+        // Get queue items (only pending/processing/failed - no completed)
         $queue = $db->fetchAll(
-            "SELECT q.*, i.title, i.thumbnail_path
+            "SELECT q.*, i.title, i.thumbnail_path, i.status as image_status
              FROM ai_processing_queue q
              JOIN images i ON q.image_id = i.id
+             WHERE q.status IN ('pending', 'processing', 'failed')
              ORDER BY
                 CASE q.status
                     WHEN 'processing' THEN 1
                     WHEN 'pending' THEN 2
                     WHEN 'failed' THEN 3
-                    ELSE 4
                 END,
                 q.priority DESC,
                 q.created_at DESC
-             LIMIT 50"
+             LIMIT 100"
         );
 
-        // Get images not yet processed (no ai_processed_at)
-        $unprocessed = $db->fetchAll(
-            "SELECT i.id, i.title, i.thumbnail_path, i.created_at
+        // Get draft images not in queue (need to be queued)
+        $unqueued = $db->fetchAll(
+            "SELECT i.id, i.title, i.thumbnail_path, i.created_at, i.status
              FROM images i
              LEFT JOIN ai_processing_queue q ON i.id = q.image_id
-             WHERE i.ai_processed_at IS NULL AND q.id IS NULL
+             WHERE i.status = 'draft' AND q.id IS NULL
              ORDER BY i.created_at DESC
-             LIMIT 20"
-        );
-
-        // Get recent API logs
-        $apiLogs = $db->fetchAll(
-            "SELECT * FROM api_logs
-             WHERE api_name IN ('deepseek', 'claude')
-             ORDER BY created_at DESC
-             LIMIT 10"
+             LIMIT 50"
         );
 
         return $this->view('admin/ai/index', [
@@ -97,10 +104,10 @@ class AIController extends Controller
                 'replicate' => 'Replicate (LLaVA)',
                 default => 'Claude',
             },
-            'stats' => $stats,
+            'imageStats' => $imageStats,
+            'queueStats' => $queueStats,
             'queue' => $queue,
-            'unprocessed' => $unprocessed,
-            'apiLogs' => $apiLogs,
+            'unqueued' => $unqueued,
         ], 'admin');
     }
 
