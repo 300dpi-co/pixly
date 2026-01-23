@@ -56,10 +56,18 @@ class UploadController extends Controller
 
         $files = $_FILES['images'];
         $uploadedCount = 0;
+        $queuedForAI = 0;
         $errors = [];
+        $uploadedImageIds = [];
 
         // Normalize files array for multiple uploads
         $normalizedFiles = $this->normalizeFilesArray($files);
+
+        // Check if uploader should bypass moderation (check once, not per file)
+        $bypassModeration = $this->shouldBypassModeration($user);
+
+        // Get category ID once
+        $categoryId = (int) $this->request->input('category_id');
 
         foreach ($normalizedFiles as $file) {
             // Skip empty slots
@@ -84,10 +92,6 @@ class UploadController extends Controller
 
                 // Generate basic title from filename
                 $title = $this->generateTitle($file['name']);
-
-                // Check if uploader should bypass moderation
-                // Admin, Moderator, or Trusted users skip moderation
-                $bypassModeration = $this->shouldBypassModeration($user);
 
                 // Insert into database
                 // Status stays 'draft' until AI processing completes
@@ -117,9 +121,9 @@ class UploadController extends Controller
                 ]);
 
                 $imageId = (int) $db->lastInsertId();
+                $uploadedImageIds[] = $imageId;
 
                 // Add to category if selected
-                $categoryId = (int) $this->request->input('category_id');
                 if ($categoryId > 0) {
                     $db->insert('image_categories', [
                         'image_id' => $imageId,
@@ -134,19 +138,14 @@ class UploadController extends Controller
                     );
                 }
 
-                // Always queue for AI processing (generates metadata)
+                // Queue for AI processing (generates metadata)
                 $db->insert('ai_processing_queue', [
                     'image_id' => $imageId,
                     'task_type' => 'all',
                     'priority' => $bypassModeration ? 10 : 5,
                     'status' => 'pending',
                 ]);
-
-                // For bypass users (admin/trusted), process AI immediately
-                // This auto-generates metadata and publishes the image
-                if ($bypassModeration) {
-                    $this->processImageAI($imageId);
-                }
+                $queuedForAI++;
 
                 $uploadedCount++;
 
@@ -157,9 +156,35 @@ class UploadController extends Controller
             }
         }
 
+        // Process AI for first few images only (avoid timeout on bulk uploads)
+        // For single/small uploads: process immediately
+        // For bulk uploads: process first 2, queue the rest
+        $processedAI = 0;
+        $maxImmediateProcess = min(2, count($uploadedImageIds));
+
+        if ($bypassModeration && !empty($uploadedImageIds)) {
+            foreach ($uploadedImageIds as $imageId) {
+                if ($processedAI >= $maxImmediateProcess) {
+                    break;
+                }
+                $this->processImageAI($imageId);
+                $processedAI++;
+            }
+        }
+
         // Build response message
         if ($uploadedCount > 0) {
             $message = "Successfully uploaded {$uploadedCount} image(s).";
+
+            if ($bypassModeration) {
+                $remaining = $queuedForAI - $processedAI;
+                if ($remaining > 0) {
+                    $message .= " {$processedAI} processed, {$remaining} queued for AI processing.";
+                }
+            } else {
+                $message .= " Queued for moderation.";
+            }
+
             if (!empty($errors)) {
                 $message .= ' Some files had errors: ' . implode('; ', $errors);
             }

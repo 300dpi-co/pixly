@@ -220,6 +220,7 @@ $router->group(['prefix' => 'admin', 'middleware' => ['auth', 'admin']], functio
     // AI
     $router->get('/ai', 'App\Controllers\Admin\AIController@index');
     $router->post('/ai/process', 'App\Controllers\Admin\AIController@process', ['csrf']);
+    $router->post('/ai/process-all', 'App\Controllers\Admin\AIController@processAll', ['csrf']);
     $router->post('/ai/process/{id}', 'App\Controllers\Admin\AIController@processSingle', ['csrf']);
     $router->post('/ai/queue', 'App\Controllers\Admin\AIController@queue', ['csrf']);
     $router->post('/ai/clear-failed', 'App\Controllers\Admin\AIController@clearFailed', ['csrf']);

@@ -112,7 +112,7 @@ class AIController extends Controller
         $generator = new MetadataGenerator();
 
         $limit = (int) $this->request->input('limit', 5);
-        $limit = min($limit, 20); // Max 20 at a time
+        $limit = min($limit, 50); // Max 50 at a time
 
         $results = $generator->processQueue($limit);
 
@@ -132,6 +132,53 @@ class AIController extends Controller
             url('/admin/ai'),
             $results['errors'][0] ?? 'No images to process'
         );
+    }
+
+    /**
+     * Process all pending images in queue (batch mode)
+     */
+    public function processAll(): Response
+    {
+        $db = $this->db();
+        $generator = new MetadataGenerator();
+
+        // Get count of pending items
+        $pendingCount = (int) $db->fetchColumn(
+            "SELECT COUNT(*) FROM ai_processing_queue WHERE status = 'pending'"
+        );
+
+        if ($pendingCount === 0) {
+            return $this->redirectWithSuccess(url('/admin/ai'), 'No pending images to process.');
+        }
+
+        // Process in batches to avoid timeout
+        $batchSize = 10;
+        $totalProcessed = 0;
+        $totalFailed = 0;
+        $maxBatches = 5; // Process max 50 images per request
+
+        for ($batch = 0; $batch < $maxBatches; $batch++) {
+            $results = $generator->processQueue($batchSize);
+            $totalProcessed += $results['processed'];
+            $totalFailed += $results['failed'];
+
+            // Stop if no more items
+            if ($results['processed'] === 0 && $results['failed'] === 0) {
+                break;
+            }
+        }
+
+        $remaining = $pendingCount - $totalProcessed - $totalFailed;
+
+        $message = "Processed {$totalProcessed} image(s).";
+        if ($totalFailed > 0) {
+            $message .= " {$totalFailed} failed.";
+        }
+        if ($remaining > 0) {
+            $message .= " {$remaining} still pending - click again to continue.";
+        }
+
+        return $this->redirectWithSuccess(url('/admin/ai'), $message);
     }
 
     /**
