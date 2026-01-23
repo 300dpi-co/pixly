@@ -244,11 +244,14 @@ class QueueService
             return null;
         }
 
-        // Get images in this batch
+        // Get images in this batch - published first (newest), then by scheduled time
         $images = $this->db->fetchAll(
-            "SELECT id, title, status, scheduled_at, slug, thumbnail_path
+            "SELECT id, title, status, scheduled_at, slug, thumbnail_path, published_at
              FROM images WHERE batch_id = :batch_id
-             ORDER BY scheduled_at ASC",
+             ORDER BY
+                CASE WHEN status = 'published' THEN 0 ELSE 1 END,
+                published_at DESC,
+                scheduled_at ASC",
             ['batch_id' => $batch['id']]
         );
 
