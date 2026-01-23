@@ -284,9 +284,9 @@ class QueueService
             return;
         }
 
-        // Get all images in this batch
+        // Get all unpublished images in this batch
         $images = $this->db->fetchAll(
-            "SELECT id FROM images WHERE batch_id = :batch_id ORDER BY id ASC",
+            "SELECT id FROM images WHERE batch_id = :batch_id AND status != 'published' ORDER BY id ASC",
             ['batch_id' => $batchId]
         );
 
@@ -298,10 +298,37 @@ class QueueService
             $minutesToAdd = $index * $intervalMinutes;
             $scheduledAt->modify("+{$minutesToAdd} minutes");
 
+            // Update image status and scheduled time
             $this->db->update('images', [
                 'status' => 'scheduled',
+                'queue_type' => 'scheduled',
                 'scheduled_at' => $scheduledAt->format('Y-m-d H:i:s'),
             ], 'id = :id', ['id' => $image['id']]);
+
+            // Ensure queue entry exists and is reset to pending
+            $existingQueue = $this->db->fetch(
+                "SELECT id FROM ai_processing_queue WHERE image_id = :image_id",
+                ['image_id' => $image['id']]
+            );
+
+            if ($existingQueue) {
+                // Reset existing queue entry
+                $this->db->update('ai_processing_queue', [
+                    'status' => 'pending',
+                    'queue_type' => 'scheduled',
+                    'attempts' => 0,
+                    'error_message' => null,
+                ], 'id = :id', ['id' => $existingQueue['id']]);
+            } else {
+                // Create new queue entry
+                $this->db->insert('ai_processing_queue', [
+                    'image_id' => $image['id'],
+                    'task_type' => 'all',
+                    'priority' => 5,
+                    'status' => 'pending',
+                    'queue_type' => 'scheduled',
+                ]);
+            }
         }
 
         // Update batch status
