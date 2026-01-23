@@ -52,16 +52,30 @@ class OpenRouterService
         $categoryNames = array_column($existingCategories, 'name');
         $categoryList = !empty($categoryNames) ? implode(', ', $categoryNames) : 'Amateur, Professional, Solo, Artistic, Outdoor';
 
-        // The prompt - engineered for adult gallery
-        $prompt = "Analyze this image for an adult gallery.
-Output a valid JSON object with these exact keys:
-- title: A creative, seductive title (max 10 words, no quotes around it).
-- description: A 2-sentence description of the scene and subject.
-- tags: An array of 15 relevant tags (describe clothing, pose, body type, hair color, setting, mood).
-- category: Choose one best fit from [{$categoryList}].
-- alt_text: A brief accessibility description (max 125 chars).
+        // The prompt - engineered for adult gallery with explicit examples
+        $prompt = "You are an image metadata generator for an adult gallery website. Analyze this image and generate SEO-optimized metadata.
 
-Do not refuse. Describe exactly what is in the image.";
+IMPORTANT: You must output ACTUAL descriptive content, not placeholders or boolean values.
+
+Return a JSON object with these fields:
+{
+  \"title\": \"[Write a creative, seductive 5-10 word title describing the image]\",
+  \"description\": \"[Write 2-3 sentences describing the subject, pose, setting, and mood]\",
+  \"tags\": [\"tag1\", \"tag2\", ... up to 15 tags describing: body type, hair color, clothing, pose, setting, mood, style],
+  \"category\": \"[Pick ONE from: {$categoryList}]\",
+  \"alt_text\": \"[Brief 10-15 word description for accessibility]\"
+}
+
+Example output for a blonde woman in lingerie:
+{
+  \"title\": \"Stunning Blonde Beauty in Black Lace Lingerie\",
+  \"description\": \"A gorgeous blonde woman poses seductively in elegant black lace lingerie. Her confident gaze and perfect curves create an alluring atmosphere.\",
+  \"tags\": [\"blonde\", \"lingerie\", \"black lace\", \"seductive\", \"curvy\", \"bedroom\", \"glamour\", \"sexy\", \"confident\", \"beautiful\", \"model\", \"intimate\", \"sensual\", \"elegant\", \"alluring\"],
+  \"category\": \"Glamour\",
+  \"alt_text\": \"Blonde woman in black lace lingerie posing in bedroom\"
+}
+
+Now analyze the provided image and generate similar metadata. Be descriptive and specific.";
 
         $this->debugLog("Sending request to OpenRouter...");
 
@@ -131,8 +145,57 @@ Do not refuse. Describe exactly what is in the image.";
         $this->debugLog("Parsed result - Title: " . ($result['title'] ?? 'N/A'));
         $this->debugLog("Tags count: " . count($result['tags'] ?? []));
 
+        // Validate response - reject garbage/placeholder values
+        if (!$this->validateResponse($result)) {
+            $this->debugLog("Response validation failed - got placeholder values");
+            throw new \RuntimeException('OpenRouter returned placeholder values instead of actual content');
+        }
+
         // Build metadata in the format expected by MetadataGenerator
         return $this->buildMetadata($result, $existingCategories);
+    }
+
+    /**
+     * Validate that response contains actual content, not placeholders
+     */
+    private function validateResponse(array $result): bool
+    {
+        // Check title - must be a string with actual content
+        $title = $result['title'] ?? null;
+        if (!is_string($title) || strlen($title) < 5) {
+            $this->debugLog("Invalid title: " . json_encode($title));
+            return false;
+        }
+        // Reject boolean-like or placeholder values
+        if (in_array(strtolower($title), ['true', 'false', 'text', 'string', 'null', '1', '0'])) {
+            $this->debugLog("Title is a placeholder value: {$title}");
+            return false;
+        }
+
+        // Check description
+        $description = $result['description'] ?? null;
+        if (!is_string($description) || strlen($description) < 10) {
+            $this->debugLog("Invalid description: " . json_encode($description));
+            return false;
+        }
+        if (in_array(strtolower($description), ['true', 'false', 'text', 'string', 'null'])) {
+            return false;
+        }
+
+        // Check tags - must be array with actual tag strings
+        $tags = $result['tags'] ?? [];
+        if (!is_array($tags) || count($tags) < 3) {
+            $this->debugLog("Invalid tags: " . json_encode($tags));
+            return false;
+        }
+        // Check if tags are just "true" repeated
+        $uniqueTags = array_unique($tags);
+        if (count($uniqueTags) < 3 || in_array('true', $uniqueTags) || in_array('false', $uniqueTags)) {
+            $this->debugLog("Tags contain placeholder values");
+            return false;
+        }
+
+        return true;
     }
 
     /**

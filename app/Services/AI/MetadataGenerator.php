@@ -107,6 +107,7 @@ class MetadataGenerator
         // Check if AI is configured
         if (!$this->ai->isConfigured()) {
             $providerName = match($this->provider) {
+                'openrouter' => 'OpenRouter',
                 'aihorde' => 'AI Horde',
                 'replicate' => 'Replicate',
                 default => 'Claude',
@@ -145,22 +146,20 @@ class MetadataGenerator
             'color_palette' => !empty($analysis['colors']) ? json_encode($analysis['colors']) : null,
         ];
 
-        // Optionally update main fields if they're empty or generic
-        if (empty($image['description']) && !empty($analysis['description'])) {
+        // Always use AI-generated content when available (it's more SEO-optimized)
+        if (!empty($analysis['description'])) {
             $updates['description'] = $analysis['description'];
         }
 
-        if (empty($image['caption']) && !empty($analysis['caption'])) {
+        if (!empty($analysis['caption'])) {
             $updates['caption'] = $analysis['caption'];
         }
 
-        // Update title if it's just the filename
-        $titleUpdated = false;
-        if ($this->isGenericTitle($image['title']) && !empty($analysis['title'])) {
+        // Always use AI title - it's more descriptive and SEO-friendly than filename-based titles
+        if (!empty($analysis['title'])) {
             $updates['title'] = $analysis['title'];
             $updates['alt_text'] = $analysis['alt_text'] ?? $analysis['title'];
-            $titleUpdated = true;
-        } elseif (empty($image['alt_text']) && !empty($analysis['alt_text'])) {
+        } elseif (!empty($analysis['alt_text'])) {
             $updates['alt_text'] = $analysis['alt_text'];
         }
 
