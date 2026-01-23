@@ -55,38 +55,65 @@ class OpenRouterService
         // Build detailed category guide
         $categoryGuide = $this->buildCategoryGuide($categoryNames);
 
-        // The prompt - engineered for adult gallery with explicit examples
-        $prompt = "You are an SEO metadata generator for an adult image gallery. Generate metadata in ENGLISH ONLY.
+        // The prompt - engineered for dual-market SEO (India + USA)
+        $prompt = "You are an SEO metadata generator for an adult image gallery targeting INDIA and USA markets.
 
 CRITICAL RULES:
-1. ALL output must be in ENGLISH language only - no other languages
+1. Output in ENGLISH + Hindi Romaji terms for SEO
 2. Output ACTUAL descriptive content, never placeholders or boolean values
 3. Be specific and descriptive about what you see in the image
+
+TARGET MARKETS - DUAL SEO STRATEGY:
+For INDIAN subjects, include Hindi Romaji search terms that Indian users search for:
+- Relationship terms: desi, bhabhi, aunty, maal, pataka, mast, jawani
+- Regional: punjabi, bengali, tamil, telugu, marathi, gujarati, mallu, north indian, south indian
+- Clothing: saree, blouse, petticoat, salwar, dupatta, lehenga, kurti
+- Body: moti, gori, sanwli, busty bhabhi, thick aunty
+
+For USA market, include Western terms:
+- Standard: milf, hot wife, exotic, curvy, busty, thicc, amateur, homemade
+- Cross-cultural: indian milf, desi beauty, exotic indian, brown beauty
 
 CATEGORY SELECTION GUIDE:
 {$categoryGuide}
 
 OUTPUT FORMAT (JSON):
 {
-  \"title\": \"Creative, seductive English title (5-10 words)\",
+  \"title\": \"Creative English title with one Hindi Romaji term if Indian (5-10 words)\",
   \"description\": \"2-3 English sentences describing the subject, pose, setting, mood\",
-  \"tags\": [\"15 lowercase English tags including: ETHNICITY (asian/latina/ebony/caucasian/indian/middle-eastern/mixed), body type, hair color, clothing, pose, setting, mood\"],
+  \"tags\": [\"20 tags mixing: ethnicity, Hindi Romaji terms (if Indian), Western terms, body type, hair, clothing, pose, setting\"],
   \"categories\": [\"1-3 best matching categories from: {$categoryList}\"],
   \"alt_text\": \"Brief 10-15 word English description\"
 }
 
-IMPORTANT FOR TAGS: Always include ethnicity/race as one of the first tags (e.g., asian, latina, ebony, caucasian, indian, middle-eastern, mixed).
-
-EXAMPLE - Asian woman in lingerie on bed:
+EXAMPLE 1 - Indian woman in saree:
 {
-  \"title\": \"Stunning Asian Beauty in Black Lace Lingerie\",
-  \"description\": \"A gorgeous Asian woman poses seductively in elegant black lace lingerie. Her confident gaze and perfect curves create an alluring bedroom atmosphere.\",
-  \"tags\": [\"asian\", \"brunette\", \"lingerie\", \"black lace\", \"seductive\", \"curvy\", \"bedroom\", \"glamour\", \"sexy\", \"confident\", \"beautiful\", \"model\", \"intimate\", \"sensual\", \"boudoir\"],
-  \"categories\": [\"Lingerie\", \"Asian\", \"Babe\"],
-  \"alt_text\": \"Asian woman in black lace lingerie posing seductively on bed\"
+  \"title\": \"Sexy Desi Bhabhi Strips Her Red Saree\",
+  \"description\": \"A gorgeous Indian bhabhi teases as she slowly removes her traditional red saree. Her curvy figure and seductive eyes promise an unforgettable experience.\",
+  \"tags\": [\"desi\", \"bhabhi\", \"indian\", \"saree\", \"milf\", \"aunty\", \"curvy\", \"busty\", \"exotic\", \"north indian\", \"hot wife\", \"traditional\", \"seductive\", \"brown\", \"homemade\", \"maal\", \"gori\", \"thick\", \"amateur\", \"bedroom\"],
+  \"categories\": [\"Indian\", \"MILF\", \"Amateur\"],
+  \"alt_text\": \"Curvy Indian bhabhi removing red saree seductively in bedroom\"
 }
 
-Now analyze this image and generate English metadata. Pick 1-3 BEST matching categories. ALWAYS include ethnicity in tags.";
+EXAMPLE 2 - South Indian woman:
+{
+  \"title\": \"Hot Mallu Aunty Shows Her Curves\",
+  \"description\": \"A voluptuous South Indian mallu aunty flaunts her incredible curves. Her dark skin glows as she poses confidently in her bedroom.\",
+  \"tags\": [\"mallu\", \"aunty\", \"south indian\", \"tamil\", \"desi\", \"indian\", \"curvy\", \"thick\", \"busty\", \"milf\", \"exotic\", \"brown beauty\", \"sanwli\", \"hot wife\", \"amateur\", \"homemade\", \"moti\", \"bedroom\", \"mature\", \"seductive\"],
+  \"categories\": [\"Indian\", \"Mature\", \"BBW\"],
+  \"alt_text\": \"Voluptuous South Indian mallu aunty posing in bedroom\"
+}
+
+EXAMPLE 3 - Non-Indian (Caucasian):
+{
+  \"title\": \"Blonde Bombshell in Lace Lingerie\",
+  \"description\": \"A stunning blonde beauty poses in delicate white lace lingerie. Her piercing blue eyes and perfect figure create an irresistible allure.\",
+  \"tags\": [\"caucasian\", \"blonde\", \"lingerie\", \"white lace\", \"blue eyes\", \"busty\", \"curvy\", \"babe\", \"model\", \"glamour\", \"sexy\", \"seductive\", \"bedroom\", \"intimate\", \"beautiful\", \"hot\", \"american\", \"milf\", \"sensual\", \"elegant\"],
+  \"categories\": [\"Lingerie\", \"Blonde\", \"Babe\"],
+  \"alt_text\": \"Blonde woman in white lace lingerie posing seductively\"
+}
+
+Now analyze this image. If subject appears INDIAN, use Hindi Romaji terms + Western terms for dual SEO. Pick 1-3 BEST categories.";
 
         $this->debugLog("Sending request to OpenRouter...");
 
@@ -382,7 +409,7 @@ Now analyze this image and generate English metadata. Pick 1-3 BEST matching cat
             'description' => $description,
             'alt_text' => $altText,
             'caption' => $this->generateCaption(),
-            'tags' => array_slice(array_values($tags), 0, 15),
+            'tags' => array_slice(array_values($tags), 0, 20),
             'categories' => $categories,
             'colors' => $colors,
             'dominant_color' => $colors[0] ?? null,
