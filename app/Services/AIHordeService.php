@@ -93,11 +93,11 @@ class AIHordeService
                 $relativePath = $webpPath;
             }
 
-            return 'https://freewallpapers.pics/uploads/' . $relativePath;
+            return rtrim(config('app.url'), '/') . '/uploads/' . $relativePath;
         }
 
         // Fallback - assume it's already a URL or construct from filename
-        return 'https://freewallpapers.pics/uploads/images/' . basename($imagePath);
+        return rtrim(config('app.url'), '/') . '/uploads/images/' . basename($imagePath);
     }
 
     /**
@@ -124,7 +124,7 @@ class AIHordeService
             CURLOPT_HTTPHEADER => [
                 'apikey: ' . $this->apiKey,
                 'Content-Type: application/json',
-                'Client-Agent: PixlyGallery:1.4:contact@freewallpapers.pics',
+                'Client-Agent: PixlyGallery:1.4:noreply@pixly.app',
             ],
         ]);
 
@@ -172,7 +172,7 @@ class AIHordeService
                 CURLOPT_TIMEOUT => 15,
                 CURLOPT_HTTPHEADER => [
                     'apikey: ' . $this->apiKey,
-                    'Client-Agent: PixlyGallery:1.4:contact@freewallpapers.pics',
+                    'Client-Agent: PixlyGallery:1.4:noreply@pixly.app',
                 ],
             ]);
 
@@ -733,7 +733,7 @@ class AIHordeService
                 CURLOPT_TIMEOUT => 10,
                 CURLOPT_HTTPHEADER => [
                     'apikey: ' . $this->apiKey,
-                    'Client-Agent: PixlyGallery:1.4:contact@freewallpapers.pics',
+                    'Client-Agent: PixlyGallery:1.4:noreply@pixly.app',
                 ],
             ]);
 

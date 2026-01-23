@@ -158,7 +158,7 @@ Now analyze this image. If subject appears INDIAN, use Hindi Romaji terms + West
                 CURLOPT_HTTPHEADER => [
                     'Authorization: Bearer ' . $this->apiKey,
                     'Content-Type: application/json',
-                    'HTTP-Referer: https://freewallpapers.pics',
+                    'HTTP-Referer: ' . config('app.url'),
                     'X-Title: Pixly Gallery Auto-Tagger'
                 ],
                 CURLOPT_POSTFIELDS => json_encode($data)
@@ -396,10 +396,10 @@ Now analyze this image. If subject appears INDIAN, use Hindi Romaji terms + West
                 $relativePath = $webpPath;
             }
 
-            return 'https://freewallpapers.pics/uploads/' . $relativePath;
+            return rtrim(config('app.url'), '/') . '/uploads/' . $relativePath;
         }
 
-        return 'https://freewallpapers.pics/uploads/images/' . basename($imagePath);
+        return rtrim(config('app.url'), '/') . '/uploads/images/' . basename($imagePath);
     }
 
     /**
