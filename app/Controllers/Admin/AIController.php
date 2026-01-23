@@ -8,7 +8,7 @@ use App\Core\Controller;
 use App\Core\Response;
 use App\Services\ClaudeAIService;
 use App\Services\ReplicateAIService;
-use App\Services\HuggingFaceAIService;
+use App\Services\AIHordeService;
 use App\Services\AI\MetadataGenerator;
 
 /**
@@ -32,8 +32,8 @@ class AIController extends Controller
         $provider = $generator->getProvider();
 
         // Check if the current provider is configured
-        if ($provider === 'huggingface') {
-            $ai = new HuggingFaceAIService();
+        if ($provider === 'aihorde') {
+            $ai = new AIHordeService();
         } elseif ($provider === 'replicate') {
             $ai = new ReplicateAIService();
         } else {
@@ -89,7 +89,7 @@ class AIController extends Controller
             'isConfigured' => $ai->isConfigured(),
             'provider' => $provider,
             'providerName' => match($provider) {
-                'huggingface' => 'Hugging Face (Florence-2 + WD14)',
+                'aihorde' => 'AI Horde (Caption + Danbooru Tags)',
                 'replicate' => 'Replicate (LLaVA)',
                 default => 'Claude',
             },
