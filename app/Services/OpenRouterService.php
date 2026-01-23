@@ -70,21 +70,23 @@ OUTPUT FORMAT (JSON):
 {
   \"title\": \"Creative, seductive English title (5-10 words)\",
   \"description\": \"2-3 English sentences describing the subject, pose, setting, mood\",
-  \"tags\": [\"15 lowercase English tags: body type, hair color, clothing, pose, setting, mood\"],
+  \"tags\": [\"15 lowercase English tags including: ETHNICITY (asian/latina/ebony/caucasian/indian/middle-eastern/mixed), body type, hair color, clothing, pose, setting, mood\"],
   \"categories\": [\"1-3 best matching categories from: {$categoryList}\"],
   \"alt_text\": \"Brief 10-15 word English description\"
 }
 
-EXAMPLE - Blonde woman in lingerie on bed:
+IMPORTANT FOR TAGS: Always include ethnicity/race as one of the first tags (e.g., asian, latina, ebony, caucasian, indian, middle-eastern, mixed).
+
+EXAMPLE - Asian woman in lingerie on bed:
 {
-  \"title\": \"Stunning Blonde Beauty in Black Lace Lingerie\",
-  \"description\": \"A gorgeous blonde woman poses seductively in elegant black lace lingerie. Her confident gaze and perfect curves create an alluring bedroom atmosphere.\",
-  \"tags\": [\"blonde\", \"lingerie\", \"black lace\", \"seductive\", \"curvy\", \"bedroom\", \"glamour\", \"sexy\", \"confident\", \"beautiful\", \"model\", \"intimate\", \"sensual\", \"elegant\", \"boudoir\"],
-  \"categories\": [\"Lingerie\", \"Blonde\", \"Babe\"],
-  \"alt_text\": \"Blonde woman in black lace lingerie posing seductively on bed\"
+  \"title\": \"Stunning Asian Beauty in Black Lace Lingerie\",
+  \"description\": \"A gorgeous Asian woman poses seductively in elegant black lace lingerie. Her confident gaze and perfect curves create an alluring bedroom atmosphere.\",
+  \"tags\": [\"asian\", \"brunette\", \"lingerie\", \"black lace\", \"seductive\", \"curvy\", \"bedroom\", \"glamour\", \"sexy\", \"confident\", \"beautiful\", \"model\", \"intimate\", \"sensual\", \"boudoir\"],
+  \"categories\": [\"Lingerie\", \"Asian\", \"Babe\"],
+  \"alt_text\": \"Asian woman in black lace lingerie posing seductively on bed\"
 }
 
-Now analyze this image and generate English metadata. Pick 1-3 BEST matching categories.";
+Now analyze this image and generate English metadata. Pick 1-3 BEST matching categories. ALWAYS include ethnicity in tags.";
 
         $this->debugLog("Sending request to OpenRouter...");
 
