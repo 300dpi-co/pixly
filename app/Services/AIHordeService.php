@@ -259,22 +259,37 @@ class AIHordeService
             return trim($tag);
         }, $tagNames);
 
-        $this->debugLog("Parsed " . count($tagNames) . " tags");
+        $this->debugLog("Parsed " . count($tagNames) . " tags from interrogation");
 
-        // Generate title from tags
+        // If no tags from interrogation, extract keywords from caption
+        if (empty($tagNames) && !empty($caption)) {
+            $tagNames = $this->extractTagsFromCaption($caption);
+            $this->debugLog("Extracted " . count($tagNames) . " tags from caption");
+        }
+
+        // Generate title - try tags first, then caption
         $title = $this->generateTitle($tagNames);
+        if ($title === 'Beautiful Model Photo' && !empty($caption)) {
+            $title = $this->generateTitleFromCaption($caption);
+        }
 
         // Generate description
         $description = $this->generateDescription($caption, $tagNames);
 
-        // Match categories
+        // Match categories from both tags and caption
         $categories = $this->matchCategories($tagNames, $existingCategories);
+        if (empty($categories) && !empty($caption)) {
+            $categories = $this->matchCategoriesFromCaption($caption, $existingCategories);
+        }
 
         // Prioritize adult-relevant tags
         $finalTags = $this->prioritizeTags($tagNames);
 
-        // Extract colors
+        // Extract colors from tags or caption
         $colors = $this->extractColors($tagNames);
+        if (empty($colors) && !empty($caption)) {
+            $colors = $this->extractColorsFromCaption($caption);
+        }
 
         return [
             'title' => $title,
@@ -288,6 +303,141 @@ class AIHordeService
             'mood' => $this->detectMood($tagNames),
             'style' => $this->detectStyle($tagNames),
         ];
+    }
+
+    /**
+     * Extract tags from caption text
+     */
+    private function extractTagsFromCaption(string $caption): array
+    {
+        $tags = [];
+        $captionLower = strtolower($caption);
+
+        // Body-related keywords
+        $bodyKeywords = [
+            'woman', 'girl', 'lady', 'female', 'model',
+            'blonde', 'brunette', 'redhead', 'black hair', 'brown hair',
+            'bikini', 'lingerie', 'dress', 'skirt', 'top', 'shirt', 'jeans', 'shorts',
+            'nude', 'naked', 'topless',
+            'bed', 'bedroom', 'bathroom', 'kitchen', 'pool', 'beach', 'outdoor', 'couch', 'sofa',
+            'posing', 'standing', 'sitting', 'lying', 'kneeling',
+            'sexy', 'hot', 'beautiful', 'gorgeous', 'stunning',
+        ];
+
+        foreach ($bodyKeywords as $keyword) {
+            if (stripos($captionLower, $keyword) !== false) {
+                $tags[] = $keyword;
+            }
+        }
+
+        // Extract colors mentioned
+        $colors = ['red', 'blue', 'green', 'black', 'white', 'pink', 'yellow', 'purple', 'orange', 'brown'];
+        foreach ($colors as $color) {
+            if (stripos($captionLower, $color) !== false) {
+                $tags[] = $color;
+            }
+        }
+
+        return array_unique($tags);
+    }
+
+    /**
+     * Generate title from caption when no tags available
+     */
+    private function generateTitleFromCaption(string $caption): string
+    {
+        $captionLower = strtolower($caption);
+
+        // Extract key elements
+        $adjectives = ['Sexy', 'Hot', 'Beautiful', 'Gorgeous', 'Stunning', 'Sensual'];
+        $adj = $adjectives[array_rand($adjectives)];
+
+        // Try to find hair color
+        $hair = '';
+        if (stripos($captionLower, 'blonde') !== false) $hair = 'Blonde';
+        elseif (stripos($captionLower, 'brunette') !== false || stripos($captionLower, 'brown hair') !== false) $hair = 'Brunette';
+        elseif (stripos($captionLower, 'redhead') !== false || stripos($captionLower, 'red hair') !== false) $hair = 'Redhead';
+        elseif (stripos($captionLower, 'black hair') !== false) $hair = 'Dark Haired';
+
+        // Try to find location/setting
+        $setting = '';
+        if (stripos($captionLower, 'bed') !== false || stripos($captionLower, 'bedroom') !== false) $setting = 'in Bedroom';
+        elseif (stripos($captionLower, 'bathroom') !== false || stripos($captionLower, 'shower') !== false) $setting = 'in Bathroom';
+        elseif (stripos($captionLower, 'kitchen') !== false) $setting = 'in Kitchen';
+        elseif (stripos($captionLower, 'pool') !== false) $setting = 'by the Pool';
+        elseif (stripos($captionLower, 'beach') !== false) $setting = 'at the Beach';
+        elseif (stripos($captionLower, 'outdoor') !== false || stripos($captionLower, 'outside') !== false) $setting = 'Outdoors';
+        elseif (stripos($captionLower, 'couch') !== false || stripos($captionLower, 'sofa') !== false) $setting = 'on Couch';
+
+        // Try to find clothing/state
+        $clothing = '';
+        if (stripos($captionLower, 'bikini') !== false) $clothing = 'in Bikini';
+        elseif (stripos($captionLower, 'lingerie') !== false) $clothing = 'in Lingerie';
+        elseif (stripos($captionLower, 'nude') !== false || stripos($captionLower, 'naked') !== false) $clothing = 'Nude';
+        elseif (stripos($captionLower, 'dress') !== false) $clothing = 'in Dress';
+
+        // Build title
+        $parts = array_filter([$adj, $hair, 'Babe', $clothing, $setting]);
+        $title = implode(' ', $parts);
+
+        // Clean up double spaces
+        $title = preg_replace('/\s+/', ' ', trim($title));
+
+        return $title ?: 'Sexy Model Photo';
+    }
+
+    /**
+     * Match categories from caption text
+     */
+    private function matchCategoriesFromCaption(string $caption, array $existingCategories): array
+    {
+        if (empty($existingCategories)) {
+            return [];
+        }
+
+        $matched = [];
+        $captionLower = strtolower($caption);
+
+        foreach ($existingCategories as $category) {
+            $catName = strtolower($category['name']);
+            // Check if category name appears in caption
+            if (stripos($captionLower, $catName) !== false) {
+                $matched[] = $category['name'];
+            }
+        }
+
+        return array_slice(array_unique($matched), 0, 2);
+    }
+
+    /**
+     * Extract colors from caption
+     */
+    private function extractColorsFromCaption(string $caption): array
+    {
+        $colorMap = [
+            'red' => '#e53935',
+            'blue' => '#1e88e5',
+            'green' => '#43a047',
+            'yellow' => '#fdd835',
+            'pink' => '#e91e63',
+            'purple' => '#8e24aa',
+            'orange' => '#fb8c00',
+            'black' => '#212121',
+            'white' => '#fafafa',
+            'brown' => '#6d4c41',
+        ];
+
+        $colors = [];
+        $captionLower = strtolower($caption);
+
+        foreach ($colorMap as $colorName => $hex) {
+            // Check for color in clothing context, not hair
+            if (preg_match('/\b' . $colorName . '\s+(shirt|top|dress|skirt|bikini|lingerie|pants|shorts)\b/i', $captionLower)) {
+                $colors[] = $hex;
+            }
+        }
+
+        return array_slice(array_unique($colors), 0, 3);
     }
 
     /**
