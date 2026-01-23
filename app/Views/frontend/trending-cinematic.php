@@ -78,7 +78,9 @@
                     <div class="relative aspect-[4/5] bg-neutral-900 rounded-xl overflow-hidden">
                         <img src="<?= e('/uploads/' . $thumb) ?>"
                              alt="<?= e($img['alt_text'] ?: $img['title']) ?>"
-                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                             fetchpriority="high"
+                             decoding="async">
 
                         <!-- Gradient Overlay -->
                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>

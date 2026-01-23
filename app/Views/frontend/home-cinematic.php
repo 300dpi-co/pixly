@@ -58,11 +58,11 @@
                 ?>
                 <a href="<?= $view->url('/image/' . $img['slug']) ?>" class="group block">
                     <div class="relative aspect-[4/5] bg-neutral-900 rounded-xl overflow-hidden">
-                        <img data-src="<?= e(uploads_url($thumb)) ?>"
-                             src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"
+                        <img src="<?= e(uploads_url($thumb)) ?>"
                              alt="<?= e($img['alt_text'] ?: $img['title']) ?>"
                              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                             loading="lazy">
+                             fetchpriority="high"
+                             decoding="async">
 
                         <!-- Gradient Overlay -->
                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>

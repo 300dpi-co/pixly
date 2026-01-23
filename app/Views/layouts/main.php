@@ -6,6 +6,12 @@
     <title><?= e($title ?? 'Home') ?><?= config('seo.title_separator') ?><?= e(setting('site_name', config('app.name'))) ?></title>
     <meta name="description" content="<?= e($meta_description ?? config('seo.site_description')) ?>">
 
+    <!-- Preconnect to external resources for faster loading -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+
     <!-- Tracking Codes (GA, GTM, FB Pixel, Custom) -->
     <?= head_tracking_codes() ?>
 
@@ -1097,7 +1103,7 @@
             });
         }
 
-        // Lazy loading for images
+        // Optimized lazy loading for images
         document.addEventListener('DOMContentLoaded', function() {
             const images = document.querySelectorAll('img[data-src]');
             const imageObserver = new IntersectionObserver((entries, observer) => {
@@ -1106,9 +1112,13 @@
                         const img = entry.target;
                         img.src = img.dataset.src;
                         img.removeAttribute('data-src');
+                        img.decoding = 'async';
                         observer.unobserve(img);
                     }
                 });
+            }, {
+                rootMargin: '100px 0px', // Load images 100px before they enter viewport
+                threshold: 0.01
             });
 
             images.forEach(img => imageObserver.observe(img));
