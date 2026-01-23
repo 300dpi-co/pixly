@@ -331,13 +331,15 @@ class AdService
         $gaId = $this->settings['google_analytics_id'] ?? '';
         if (!empty($gaId)) {
             $codes[] = sprintf(
-                '<script async src="https://www.googletagmanager.com/gtag/js?id=%s"></script>
-                <script>
-                    window.dataLayer = window.dataLayer || [];
-                    function gtag(){dataLayer.push(arguments);}
-                    gtag("js", new Date());
-                    gtag("config", "%s");
-                </script>',
+                '<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=%s"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag(\'js\', new Date());
+
+  gtag(\'config\', \'%s\');
+</script>',
                 htmlspecialchars($gaId),
                 htmlspecialchars($gaId)
             );
