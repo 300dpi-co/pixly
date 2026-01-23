@@ -58,18 +58,11 @@
                         Images
                     </a>
 
-                    <a href="<?= $view->url('/admin/images/upload') ?>" class="flex items-center px-4 py-1 text-sm rounded-lg <?= ($currentPage ?? '') === 'upload' ? 'bg-neutral-700 text-white' : 'text-neutral-300 hover:bg-neutral-700 hover:text-white' ?>">
+                    <a href="<?= $view->url('/admin/upload') ?>" class="flex items-center px-4 py-1 text-sm rounded-lg <?= in_array($currentPage ?? '', ['upload', 'bulk-upload']) ? 'bg-neutral-700 text-white' : 'text-neutral-300 hover:bg-neutral-700 hover:text-white' ?>">
                         <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                         </svg>
                         Upload
-                    </a>
-
-                    <a href="<?= $view->url('/admin/bulk-upload') ?>" class="flex items-center px-4 py-1 text-sm rounded-lg <?= ($currentPage ?? '') === 'bulk-upload' ? 'bg-neutral-700 text-white' : 'text-neutral-300 hover:bg-neutral-700 hover:text-white' ?>">
-                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4-4m0 0L8 12m4-4v12M4 4h16"/>
-                        </svg>
-                        Bulk Upload
                     </a>
 
                     <a href="<?= $view->url('/admin/categories') ?>" class="flex items-center px-4 py-1 text-sm rounded-lg <?= ($currentPage ?? '') === 'categories' ? 'bg-neutral-700 text-white' : 'text-neutral-300 hover:bg-neutral-700 hover:text-white' ?>">

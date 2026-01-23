@@ -1,21 +1,5 @@
 <div class="max-w-4xl">
-    <!-- Info Banner -->
-    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-        <div class="flex">
-            <svg class="w-5 h-5 text-blue-600 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-            <div>
-                <h3 class="text-sm font-medium text-blue-800">Bulk Upload with Scheduling</h3>
-                <p class="text-sm text-blue-600 mt-1">
-                    Upload multiple images at once. For 4+ images, you'll be able to schedule
-                    them for staggered publishing (3-5 minute intervals) to avoid flooding your gallery.
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <form action="<?= $view->url('/admin/bulk-upload') ?>" method="POST" enctype="multipart/form-data" class="space-y-6">
+    <form action="<?= $view->url('/admin/upload') ?>" method="POST" enctype="multipart/form-data" class="space-y-6">
         <?= $view->csrf() ?>
 
         <!-- Upload Area -->
@@ -28,7 +12,6 @@
                 </svg>
                 <p class="mt-4 text-neutral-600">Drag and drop images here, or click to select</p>
                 <p class="mt-2 text-sm text-neutral-500">Supports JPG, PNG, GIF, WebP (max 10MB each)</p>
-                <p class="mt-1 text-sm text-primary-600 font-medium">Select 4+ images for scheduling options</p>
 
                 <input type="file" name="images[]" id="images" multiple accept="image/jpeg,image/png,image/gif,image/webp"
                        class="hidden">
@@ -48,6 +31,9 @@
                     </button>
                 </div>
                 <div id="previewGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
+
+                <!-- Info message based on count -->
+                <div id="infoMessage" class="mt-4 p-3 rounded-lg text-sm hidden"></div>
             </div>
         </div>
 
@@ -86,7 +72,7 @@
     <!-- Recent Batches -->
     <?php if (!empty($batches)): ?>
     <div class="mt-8 bg-white rounded-lg shadow p-6">
-        <h2 class="text-lg font-semibold text-neutral-900 mb-4">Recent Batches</h2>
+        <h2 class="text-lg font-semibold text-neutral-900 mb-4">Recent Upload Batches</h2>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-neutral-200">
                 <thead>
@@ -101,7 +87,7 @@
                     <?php foreach ($batches as $batch): ?>
                     <tr>
                         <td class="px-4 py-3 text-sm text-neutral-600">
-                            <?= date('M j, g:i A', strtotime($batch['created_at'])) ?>
+                            <?= format_datetime($batch['created_at'], 'M j, g:i A') ?>
                         </td>
                         <td class="px-4 py-3 text-sm text-neutral-600">
                             <?= $batch['published_count'] ?>/<?= $batch['image_count'] ?> published
@@ -141,6 +127,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const uploadBtn = document.getElementById('uploadBtn');
     const fileCount = document.getElementById('fileCount');
     const dropzone = document.getElementById('dropzone');
+    const infoMessage = document.getElementById('infoMessage');
 
     input.addEventListener('change', handleFiles);
 
@@ -175,11 +162,17 @@ document.addEventListener('DOMContentLoaded', function() {
             uploadBtn.disabled = false;
             fileCount.textContent = files.length;
 
-            // Update button text based on count
+            // Update button text and info message based on count
             if (files.length >= 4) {
-                uploadBtn.textContent = 'Upload & Schedule ' + files.length + ' Images';
+                uploadBtn.textContent = 'Upload ' + files.length + ' Images';
+                infoMessage.classList.remove('hidden');
+                infoMessage.className = 'mt-4 p-3 rounded-lg text-sm bg-blue-50 border border-blue-200 text-blue-800';
+                infoMessage.innerHTML = '<strong>Scheduling available:</strong> With 4+ images, you\'ll be able to schedule them for staggered publishing (3-10 minute intervals).';
             } else {
                 uploadBtn.textContent = 'Upload ' + files.length + ' Image' + (files.length > 1 ? 's' : '');
+                infoMessage.classList.remove('hidden');
+                infoMessage.className = 'mt-4 p-3 rounded-lg text-sm bg-green-50 border border-green-200 text-green-800';
+                infoMessage.innerHTML = '<strong>Quick upload:</strong> ' + files.length + ' image' + (files.length > 1 ? 's' : '') + ' will be processed and published immediately.';
             }
 
             Array.from(files).forEach((file, index) => {
@@ -203,6 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
             preview.classList.add('hidden');
             uploadBtn.disabled = true;
             uploadBtn.textContent = 'Upload Images';
+            infoMessage.classList.add('hidden');
         }
     }
 });

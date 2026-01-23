@@ -175,10 +175,14 @@ $router->group(['prefix' => 'admin', 'middleware' => ['auth', 'admin']], functio
 
     // Images
     $router->get('/images', 'App\Controllers\Admin\ImageController@index');
-    $router->get('/images/upload', 'App\Controllers\Admin\UploadController@show');
-    $router->post('/images/upload', 'App\Controllers\Admin\UploadController@upload', ['csrf']);
 
-    // Bulk Upload
+    // Upload (unified - handles both single and bulk)
+    $router->get('/upload', 'App\Controllers\Admin\BulkUploadController@index');
+    $router->post('/upload', 'App\Controllers\Admin\BulkUploadController@upload', ['csrf']);
+
+    // Legacy routes (redirect to new upload)
+    $router->get('/images/upload', 'App\Controllers\Admin\BulkUploadController@index');
+    $router->post('/images/upload', 'App\Controllers\Admin\BulkUploadController@upload', ['csrf']);
     $router->get('/bulk-upload', 'App\Controllers\Admin\BulkUploadController@index');
     $router->post('/bulk-upload', 'App\Controllers\Admin\BulkUploadController@upload', ['csrf']);
     $router->get('/bulk-upload/schedule/{uuid}', 'App\Controllers\Admin\BulkUploadController@schedule');

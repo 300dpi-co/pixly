@@ -43,8 +43,8 @@ class BulkUploadController extends Controller
         );
 
         return $this->view('admin/bulk-upload/index', [
-            'title' => 'Bulk Upload',
-            'currentPage' => 'bulk-upload',
+            'title' => 'Upload Images',
+            'currentPage' => 'upload',
             'categories' => $categories,
             'batches' => $batches,
         ], 'admin');
@@ -139,8 +139,8 @@ class BulkUploadController extends Controller
         );
 
         return $this->view('admin/bulk-upload/schedule', [
-            'title' => 'Schedule Bulk Upload',
-            'currentPage' => 'bulk-upload',
+            'title' => 'Schedule Upload',
+            'currentPage' => 'upload',
             'batch' => $batch,
             'images' => $images,
             'count' => count($images),
@@ -225,7 +225,7 @@ class BulkUploadController extends Controller
 
         return $this->view('admin/bulk-upload/status', [
             'title' => 'Batch Status',
-            'currentPage' => 'bulk-upload',
+            'currentPage' => 'upload',
             'batch' => $status['batch'],
             'images' => $status['images'],
             'stats' => $status['stats'],
