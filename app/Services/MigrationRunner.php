@@ -306,6 +306,12 @@ class MigrationRunner
             $this->markComplete('add_queue_type_to_ai_queue');
         }
 
+        // Migration: Add timezone setting
+        if (!$this->hasRun('add_timezone_setting')) {
+            $this->addSetting('timezone', 'UTC', 'string', 'Site timezone for displaying dates');
+            $this->markComplete('add_timezone_setting');
+        }
+
         // Migration: Create upload_batches table
         if (!$this->hasRun('create_upload_batches_table')) {
             if (!$this->tableExists('upload_batches')) {

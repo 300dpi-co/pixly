@@ -5,7 +5,7 @@
             <div>
                 <h2 class="text-lg font-semibold text-neutral-900">Batch Status</h2>
                 <p class="text-sm text-neutral-500 mt-1">
-                    Created <?= date('M j, Y g:i A', strtotime($batch['created_at'])) ?>
+                    Created <?= format_datetime($batch['created_at']) ?>
                 </p>
             </div>
             <div>
@@ -68,7 +68,7 @@
                 </svg>
                 <span class="text-neutral-600">
                     <?= $batch['schedule_type'] === 'auto_publish' ? 'Auto-publishing' : 'Scheduled publishing' ?>
-                    started at <?= date('M j, g:i A', strtotime($batch['scheduled_start_at'])) ?>
+                    started at <?= format_datetime($batch['scheduled_start_at'], 'M j, g:i A') ?>
                     with <?= $batch['publish_interval_minutes'] ?> minute intervals
                 </span>
             </div>
@@ -130,7 +130,7 @@
                         <td class="px-4 py-3">
                             <?php if ($image['scheduled_at']): ?>
                             <span class="text-sm text-neutral-600">
-                                <?= date('M j, g:i A', strtotime($image['scheduled_at'])) ?>
+                                <?= format_datetime($image['scheduled_at'], 'M j, g:i A') ?>
                             </span>
                             <?php else: ?>
                             <span class="text-sm text-neutral-400">-</span>

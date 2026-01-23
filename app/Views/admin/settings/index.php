@@ -1061,6 +1061,43 @@
                                           class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-mono text-sm"><?= e($setting['setting_value']) ?></textarea>
                                 <p class="text-neutral-500 text-sm mt-1">Enter valid JSON</p>
 
+                            <?php elseif ($setting['setting_key'] === 'timezone'): ?>
+                                <?php
+                                $commonTimezones = [
+                                    'UTC' => 'UTC (Coordinated Universal Time)',
+                                    'America/New_York' => 'US Eastern (New York)',
+                                    'America/Chicago' => 'US Central (Chicago)',
+                                    'America/Denver' => 'US Mountain (Denver)',
+                                    'America/Los_Angeles' => 'US Pacific (Los Angeles)',
+                                    'America/Anchorage' => 'US Alaska',
+                                    'Pacific/Honolulu' => 'US Hawaii',
+                                    'America/Toronto' => 'Canada Eastern (Toronto)',
+                                    'America/Vancouver' => 'Canada Pacific (Vancouver)',
+                                    'Europe/London' => 'UK (London)',
+                                    'Europe/Paris' => 'Central Europe (Paris)',
+                                    'Europe/Berlin' => 'Central Europe (Berlin)',
+                                    'Europe/Moscow' => 'Russia (Moscow)',
+                                    'Asia/Dubai' => 'UAE (Dubai)',
+                                    'Asia/Kolkata' => 'India (Kolkata)',
+                                    'Asia/Bangkok' => 'Thailand (Bangkok)',
+                                    'Asia/Singapore' => 'Singapore',
+                                    'Asia/Hong_Kong' => 'Hong Kong',
+                                    'Asia/Tokyo' => 'Japan (Tokyo)',
+                                    'Asia/Seoul' => 'South Korea (Seoul)',
+                                    'Australia/Sydney' => 'Australia Eastern (Sydney)',
+                                    'Australia/Perth' => 'Australia Western (Perth)',
+                                    'Pacific/Auckland' => 'New Zealand (Auckland)',
+                                ];
+                                ?>
+                                <select name="<?= e($setting['setting_key']) ?>"
+                                        class="w-full max-w-md px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                                    <?php foreach ($commonTimezones as $tz => $label): ?>
+                                        <option value="<?= e($tz) ?>" <?= $setting['setting_value'] === $tz ? 'selected' : '' ?>>
+                                            <?= e($label) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+
                             <?php else: ?>
                                 <?php if (strlen($setting['setting_value'] ?? '') > 100): ?>
                                     <textarea name="<?= e($setting['setting_key']) ?>" rows="3"

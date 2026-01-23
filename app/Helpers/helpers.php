@@ -324,6 +324,48 @@ if (!function_exists('time_ago')) {
     }
 }
 
+if (!function_exists('format_datetime')) {
+    /**
+     * Format a datetime string in the configured timezone
+     *
+     * @param string|null $datetime DateTime string (assumed UTC from database)
+     * @param string $format Output format (PHP date format)
+     * @return string Formatted datetime or empty string
+     */
+    function format_datetime(?string $datetime, string $format = 'M j, Y g:i A'): string
+    {
+        if (empty($datetime)) {
+            return '';
+        }
+
+        try {
+            // Database stores in UTC
+            $date = new \DateTime($datetime, new \DateTimeZone('UTC'));
+
+            // Convert to configured timezone
+            $timezone = setting('timezone', 'UTC');
+            $date->setTimezone(new \DateTimeZone($timezone));
+
+            return $date->format($format);
+        } catch (\Exception $e) {
+            // Fallback to raw value if parsing fails
+            return $datetime;
+        }
+    }
+}
+
+if (!function_exists('get_timezone')) {
+    /**
+     * Get the configured timezone
+     *
+     * @return string Timezone string (e.g., 'America/New_York')
+     */
+    function get_timezone(): string
+    {
+        return setting('timezone', 'UTC');
+    }
+}
+
 if (!function_exists('render_ad')) {
     /**
      * Render ad for a placement
