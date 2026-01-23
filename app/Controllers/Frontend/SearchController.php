@@ -65,7 +65,7 @@ class SearchController extends Controller
                        OR i.ai_description LIKE :q3
                        OR t.name LIKE :q4
                    )
-                 ORDER BY i.view_count DESC, i.created_at DESC
+                 ORDER BY i.view_count DESC, i.published_at DESC
                  LIMIT {$perPage} OFFSET {$offset}",
                 ['q1' => $searchTerm, 'q2' => $searchTerm, 'q3' => $searchTerm, 'q4' => $searchTerm]
             );

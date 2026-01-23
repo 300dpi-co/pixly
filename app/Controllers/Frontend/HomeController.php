@@ -46,7 +46,7 @@ class HomeController extends Controller
             "SELECT id, uuid, title, slug, thumbnail_path, thumbnail_webp_path, storage_path, webp_path, alt_text
              FROM images
              WHERE status = 'published' AND moderation_status = 'approved'
-             ORDER BY created_at DESC
+             ORDER BY published_at DESC
              LIMIT 12"
         );
 

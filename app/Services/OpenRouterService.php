@@ -13,7 +13,8 @@ namespace App\Services;
 class OpenRouterService
 {
     private const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-    private const MODEL = 'qwen/qwen-2.5-vl-72b-instruct';
+    // Using Llama 3.2 Vision - English-native model, no Chinese output issues
+    private const MODEL = 'meta-llama/llama-3.2-11b-vision-instruct';
     private const TIMEOUT = 45;
 
     private string $apiKey;
@@ -295,6 +296,11 @@ Now analyze this image. If subject appears INDIAN, use Hindi Romaji terms + West
             $this->debugLog("Title is a placeholder value: {$title}");
             return false;
         }
+        // Reject Chinese/non-Latin characters in title
+        if ($this->containsNonLatinCharacters($title)) {
+            $this->debugLog("Title contains non-Latin characters (Chinese?): {$title}");
+            return false;
+        }
 
         // Check description
         $description = $result['description'] ?? null;
@@ -303,6 +309,11 @@ Now analyze this image. If subject appears INDIAN, use Hindi Romaji terms + West
             return false;
         }
         if (in_array(strtolower($description), ['true', 'false', 'text', 'string', 'null'])) {
+            return false;
+        }
+        // Reject Chinese/non-Latin characters in description
+        if ($this->containsNonLatinCharacters($description)) {
+            $this->debugLog("Description contains non-Latin characters");
             return false;
         }
 
@@ -318,8 +329,32 @@ Now analyze this image. If subject appears INDIAN, use Hindi Romaji terms + West
             $this->debugLog("Tags contain placeholder values");
             return false;
         }
+        // Reject tags with Chinese characters
+        foreach ($tags as $tag) {
+            if ($this->containsNonLatinCharacters($tag)) {
+                $this->debugLog("Tag contains non-Latin characters: {$tag}");
+                return false;
+            }
+        }
+
+        // Check categories are not empty
+        $categories = $result['categories'] ?? [];
+        if (empty($categories)) {
+            $this->debugLog("Categories are empty - AI didn't select any");
+            // Don't fail, but log it - we'll use fallback
+        }
 
         return true;
+    }
+
+    /**
+     * Check if text contains Chinese or other non-Latin characters
+     */
+    private function containsNonLatinCharacters(string $text): bool
+    {
+        // Match Chinese, Japanese, Korean characters
+        // Also matches other non-Latin scripts
+        return preg_match('/[\x{4E00}-\x{9FFF}\x{3400}-\x{4DBF}\x{3040}-\x{309F}\x{30A0}-\x{30FF}\x{AC00}-\x{D7AF}]/u', $text) === 1;
     }
 
     /**
@@ -412,6 +447,12 @@ Now analyze this image. If subject appears INDIAN, use Hindi Romaji terms + West
             if (!$matched) {
                 $this->debugLog("No category match found for: {$aiCat}");
             }
+        }
+
+        // Fallback: If no categories matched, try to infer from tags
+        if (empty($categories) && !empty($existingCategories)) {
+            $categories = $this->inferCategoriesFromTags($tags, $existingCategories);
+            $this->debugLog("Inferred categories from tags: " . implode(', ', $categories));
         }
 
         $this->debugLog("Final categories (" . count($categories) . "): " . implode(', ', $categories));
@@ -538,6 +579,59 @@ Now analyze this image. If subject appears INDIAN, use Hindi Romaji terms + West
     }
 
     /**
+     * Infer categories from tags when AI doesn't provide them
+     */
+    private function inferCategoriesFromTags(array $tags, array $existingCategories): array
+    {
+        $categories = [];
+        $categoryKeywords = [
+            'amateur' => ['amateur', 'homemade', 'selfie', 'real', 'girlfriend'],
+            'asian' => ['asian', 'japanese', 'chinese', 'korean', 'thai', 'vietnamese'],
+            'bbw' => ['bbw', 'chubby', 'thick', 'curvy', 'plump', 'plus size', 'moti'],
+            'big tits' => ['big tits', 'busty', 'big boobs', 'large breasts', 'huge tits'],
+            'blonde' => ['blonde', 'blond'],
+            'brunette' => ['brunette', 'brown hair', 'dark hair'],
+            'ebony' => ['ebony', 'black', 'african'],
+            'indian' => ['indian', 'desi', 'bhabhi', 'aunty', 'mallu', 'tamil', 'punjabi', 'bengali'],
+            'latina' => ['latina', 'latin', 'hispanic', 'mexican', 'brazilian'],
+            'lingerie' => ['lingerie', 'bra', 'panties', 'underwear', 'lace'],
+            'mature' => ['mature', 'milf', 'mom', 'older', 'cougar'],
+            'milf' => ['milf', 'mom', 'mother', 'mature'],
+            'outdoor' => ['outdoor', 'outside', 'beach', 'pool', 'nature', 'public'],
+            'petite' => ['petite', 'small', 'tiny', 'slim', 'skinny'],
+            'redhead' => ['redhead', 'red hair', 'ginger'],
+            'solo' => ['solo', 'alone', 'single'],
+            'teen' => ['teen', 'young', '18', '19', 'college'],
+        ];
+
+        $tagString = strtolower(implode(' ', $tags));
+
+        foreach ($existingCategories as $cat) {
+            $catLower = strtolower($cat['name']);
+
+            // Check if category name appears in tags
+            if (str_contains($tagString, $catLower)) {
+                $categories[] = $cat['name'];
+                continue;
+            }
+
+            // Check keywords for this category
+            if (isset($categoryKeywords[$catLower])) {
+                foreach ($categoryKeywords[$catLower] as $keyword) {
+                    if (str_contains($tagString, $keyword)) {
+                        $categories[] = $cat['name'];
+                        break;
+                    }
+                }
+            }
+
+            if (count($categories) >= 3) break;
+        }
+
+        return array_slice(array_unique($categories), 0, 3);
+    }
+
+    /**
      * Check if API is configured
      */
     public function isConfigured(): bool
@@ -603,7 +697,7 @@ Now analyze this image. If subject appears INDIAN, use Hindi Romaji terms + West
         if ($httpCode === 200) {
             return [
                 'success' => true,
-                'message' => 'Connected to OpenRouter (using Qwen 2.5 VL 72B)',
+                'message' => 'Connected to OpenRouter (using Llama 3.2 Vision)',
             ];
         }
 

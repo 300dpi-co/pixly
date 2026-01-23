@@ -49,7 +49,7 @@ class ProfileController extends Controller
                     view_count, favorite_count, created_at
              FROM images
              WHERE user_id = :user_id AND status = 'published' AND moderation_status = 'approved'
-             ORDER BY created_at DESC
+             ORDER BY published_at DESC
              LIMIT 24",
             ['user_id' => $user['id']]
         );

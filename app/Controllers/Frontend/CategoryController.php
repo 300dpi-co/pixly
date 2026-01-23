@@ -55,7 +55,7 @@ class CategoryController extends Controller
              WHERE ic.category_id = :cat_id
                AND i.status = 'published'
                AND i.moderation_status = 'approved'
-             ORDER BY i.created_at DESC
+             ORDER BY i.published_at DESC
              LIMIT {$perPage} OFFSET {$offset}",
             ['cat_id' => $category['id']]
         );

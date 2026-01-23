@@ -133,6 +133,12 @@ class MetadataGenerator
             return false;
         }
 
+        // Validate that we got actual content, not just empty strings
+        if (!$this->validateAnalysisHasContent($analysis)) {
+            $this->errors[] = 'AI analysis returned empty or invalid content';
+            return false;
+        }
+
         // Reconnect to database - connection may have timed out during long AI processing
         $db = app()->reconnectDatabase();
 
@@ -406,6 +412,38 @@ class MetadataGenerator
                 'message' => "Published without AI metadata: {$errorMessage}",
             ];
         }
+    }
+
+    /**
+     * Validate that AI analysis contains actual content
+     */
+    private function validateAnalysisHasContent(array $analysis): bool
+    {
+        // Must have a non-empty title (at least 5 characters)
+        $title = $analysis['title'] ?? '';
+        if (empty($title) || strlen(trim($title)) < 5) {
+            return false;
+        }
+
+        // Must have at least 3 tags
+        $tags = $analysis['tags'] ?? [];
+        if (!is_array($tags) || count($tags) < 3) {
+            return false;
+        }
+
+        // Tags must not be empty strings
+        $validTags = array_filter($tags, fn($t) => !empty(trim($t)) && strlen(trim($t)) > 1);
+        if (count($validTags) < 3) {
+            return false;
+        }
+
+        // Description should have some content (at least 10 characters)
+        $description = $analysis['description'] ?? '';
+        if (empty($description) || strlen(trim($description)) < 10) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

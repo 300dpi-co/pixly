@@ -55,7 +55,7 @@ class TagController extends Controller
              WHERE it.tag_id = :tag_id
                AND i.status = 'published'
                AND i.moderation_status = 'approved'
-             ORDER BY i.created_at DESC
+             ORDER BY i.published_at DESC
              LIMIT {$perPage} OFFSET {$offset}",
             ['tag_id' => $tag['id']]
         );

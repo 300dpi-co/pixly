@@ -59,7 +59,7 @@ class ImageApiController extends Controller
              FROM images i
              {$joins}
              {$whereClause}
-             ORDER BY i.created_at DESC
+             ORDER BY i.published_at DESC
              LIMIT {$perPage} OFFSET {$offset}",
             $params
         );

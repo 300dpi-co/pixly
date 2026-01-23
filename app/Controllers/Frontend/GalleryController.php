@@ -36,7 +36,7 @@ class GalleryController extends Controller
                     view_count, favorite_count, is_animated, created_at
              FROM images
              WHERE status = 'published' AND moderation_status = 'approved'
-             ORDER BY created_at DESC
+             ORDER BY published_at DESC
              LIMIT {$perPage} OFFSET {$offset}"
         );
 
