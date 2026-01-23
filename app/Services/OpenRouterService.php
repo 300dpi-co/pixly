@@ -48,34 +48,43 @@ class OpenRouterService
         $imageUrl = $this->getPublicUrl($imagePath);
         $this->debugLog("Image URL: {$imageUrl}");
 
-        // Build category list for prompt
+        // Build category list with descriptions for better matching
         $categoryNames = array_column($existingCategories, 'name');
         $categoryList = !empty($categoryNames) ? implode(', ', $categoryNames) : 'Amateur, Professional, Solo, Artistic, Outdoor';
 
+        // Build detailed category guide
+        $categoryGuide = $this->buildCategoryGuide($categoryNames);
+
         // The prompt - engineered for adult gallery with explicit examples
-        $prompt = "You are an image metadata generator for an adult gallery website. Analyze this image and generate SEO-optimized metadata.
+        $prompt = "You are an SEO metadata generator for an adult image gallery. Generate metadata in ENGLISH ONLY.
 
-IMPORTANT: You must output ACTUAL descriptive content, not placeholders or boolean values.
+CRITICAL RULES:
+1. ALL output must be in ENGLISH language only - no other languages
+2. Output ACTUAL descriptive content, never placeholders or boolean values
+3. Be specific and descriptive about what you see in the image
 
-Return a JSON object with these fields:
+CATEGORY SELECTION GUIDE:
+{$categoryGuide}
+
+OUTPUT FORMAT (JSON):
 {
-  \"title\": \"[Write a creative, seductive 5-10 word title describing the image]\",
-  \"description\": \"[Write 2-3 sentences describing the subject, pose, setting, and mood]\",
-  \"tags\": [\"tag1\", \"tag2\", ... up to 15 tags describing: body type, hair color, clothing, pose, setting, mood, style],
-  \"category\": \"[Pick ONE from: {$categoryList}]\",
-  \"alt_text\": \"[Brief 10-15 word description for accessibility]\"
+  \"title\": \"Creative, seductive English title (5-10 words)\",
+  \"description\": \"2-3 English sentences describing the subject, pose, setting, mood\",
+  \"tags\": [\"15 lowercase English tags: body type, hair color, clothing, pose, setting, mood\"],
+  \"category\": \"EXACTLY ONE from: {$categoryList}\",
+  \"alt_text\": \"Brief 10-15 word English description\"
 }
 
-Example output for a blonde woman in lingerie:
+EXAMPLE - Blonde woman in lingerie on bed:
 {
   \"title\": \"Stunning Blonde Beauty in Black Lace Lingerie\",
-  \"description\": \"A gorgeous blonde woman poses seductively in elegant black lace lingerie. Her confident gaze and perfect curves create an alluring atmosphere.\",
-  \"tags\": [\"blonde\", \"lingerie\", \"black lace\", \"seductive\", \"curvy\", \"bedroom\", \"glamour\", \"sexy\", \"confident\", \"beautiful\", \"model\", \"intimate\", \"sensual\", \"elegant\", \"alluring\"],
-  \"category\": \"Glamour\",
-  \"alt_text\": \"Blonde woman in black lace lingerie posing in bedroom\"
+  \"description\": \"A gorgeous blonde woman poses seductively in elegant black lace lingerie. Her confident gaze and perfect curves create an alluring bedroom atmosphere.\",
+  \"tags\": [\"blonde\", \"lingerie\", \"black lace\", \"seductive\", \"curvy\", \"bedroom\", \"glamour\", \"sexy\", \"confident\", \"beautiful\", \"model\", \"intimate\", \"sensual\", \"elegant\", \"boudoir\"],
+  \"category\": \"Lingerie\",
+  \"alt_text\": \"Blonde woman in black lace lingerie posing seductively on bed\"
 }
 
-Now analyze the provided image and generate similar metadata. Be descriptive and specific.";
+Now analyze this image and generate English metadata. Pick the BEST matching category from the list.";
 
         $this->debugLog("Sending request to OpenRouter...");
 
@@ -153,6 +162,73 @@ Now analyze the provided image and generate similar metadata. Be descriptive and
 
         // Build metadata in the format expected by MetadataGenerator
         return $this->buildMetadata($result, $existingCategories);
+    }
+
+    /**
+     * Build category guide with descriptions for better AI matching
+     */
+    private function buildCategoryGuide(array $categoryNames): string
+    {
+        // Map category names to helpful descriptions
+        $categoryDescriptions = [
+            'amateur' => 'Amateur: Selfies, home photos, non-professional shots, casual poses',
+            'anal' => 'Anal: Anal sex, anal play, butt-focused content',
+            'asian' => 'Asian: Asian women, Japanese, Chinese, Korean, Thai models',
+            'ass' => 'Ass: Focus on buttocks, rear views, booty shots',
+            'babe' => 'Babe: Beautiful young women, attractive models, hotties',
+            'bbw' => 'BBW: Big beautiful women, plus-size, curvy/thick body types',
+            'big tits' => 'Big Tits: Large breasts, busty women, big boobs focus',
+            'bikini' => 'Bikini: Swimwear, beach wear, poolside in bikinis',
+            'blonde' => 'Blonde: Blonde hair color as main feature',
+            'blowjob' => 'Blowjob: Oral sex, sucking, mouth action',
+            'bondage' => 'Bondage: BDSM, tied up, restraints, ropes',
+            'brunette' => 'Brunette: Brown/dark hair color as main feature',
+            'celebrity' => 'Celebrity: Famous people, celebrities, known personalities',
+            'cosplay' => 'Cosplay: Costumes, anime characters, fantasy outfits',
+            'couple' => 'Couple: Two people together, romantic pairs',
+            'ebony' => 'Ebony: Black women, African American models',
+            'feet' => 'Feet: Foot focus, toes, barefoot shots',
+            'fetish' => 'Fetish: Specific kinks, unusual interests, niche content',
+            'glamour' => 'Glamour: Professional beauty shots, elegant, high-fashion style',
+            'hardcore' => 'Hardcore: Explicit sex acts, penetration, intense action',
+            'hentai' => 'Hentai: Anime/cartoon porn, drawn/illustrated content',
+            'interracial' => 'Interracial: Mixed race couples, different ethnicities together',
+            'latina' => 'Latina: Hispanic/Latin women, Spanish-speaking origin',
+            'lesbian' => 'Lesbian: Women with women, girl-on-girl content',
+            'lingerie' => 'Lingerie: Underwear, bras, panties, intimate apparel',
+            'mature' => 'Mature: Older women, MILFs, experienced ladies (35+)',
+            'milf' => 'MILF: Attractive older women, mothers, mature hotties',
+            'nude' => 'Nude: Naked, no clothes, full nudity',
+            'outdoor' => 'Outdoor: Outside locations, nature, beach, public places',
+            'petite' => 'Petite: Small/slim body type, tiny women',
+            'pornstar' => 'Pornstar: Known adult performers, professional porn actresses',
+            'pov' => 'POV: Point of view shots, first-person perspective',
+            'public' => 'Public: Public places, exhibitionism, outdoor exposure',
+            'pussy' => 'Pussy: Vagina focus, spread shots, close-ups',
+            'redhead' => 'Redhead: Red/ginger hair color as main feature',
+            'selfie' => 'Selfie: Self-taken photos, mirror shots, phone pics',
+            'solo' => 'Solo: Single person, alone, masturbation',
+            'teen' => 'Teen: Young adults 18-19, youthful appearance',
+            'threesome' => 'Threesome: Three people together, group of three',
+            'vintage' => 'Vintage: Retro, classic, old-style photos',
+        ];
+
+        $guide = [];
+        foreach ($categoryNames as $name) {
+            $nameLower = strtolower($name);
+            if (isset($categoryDescriptions[$nameLower])) {
+                $guide[] = "- " . $categoryDescriptions[$nameLower];
+            } else {
+                // Generic description for unknown categories
+                $guide[] = "- {$name}: Content related to {$name}";
+            }
+        }
+
+        if (empty($guide)) {
+            return "Pick the category that best matches the image content.";
+        }
+
+        return implode("\n", $guide);
     }
 
     /**
@@ -241,14 +317,35 @@ Now analyze the provided image and generate similar metadata. Be descriptive and
         $tags = array_map(fn($t) => strtolower(trim($t)), $tags);
         $tags = array_unique($tags);
 
-        // Match category to existing categories
+        // Match category to existing categories (prioritize exact match)
         $categories = [];
         if (!empty($category)) {
+            $categoryLower = strtolower(trim($category));
+
+            // First try exact match (case-insensitive)
             foreach ($existingCategories as $cat) {
-                if (stripos($cat['name'], $category) !== false || stripos($category, $cat['name']) !== false) {
+                if (strtolower($cat['name']) === $categoryLower) {
                     $categories[] = $cat['name'];
+                    $this->debugLog("Category exact match: {$cat['name']}");
                     break;
                 }
+            }
+
+            // If no exact match, try partial match
+            if (empty($categories)) {
+                foreach ($existingCategories as $cat) {
+                    $catLower = strtolower($cat['name']);
+                    if (str_contains($catLower, $categoryLower) || str_contains($categoryLower, $catLower)) {
+                        $categories[] = $cat['name'];
+                        $this->debugLog("Category partial match: {$cat['name']} (AI said: {$category})");
+                        break;
+                    }
+                }
+            }
+
+            // Log if no match found
+            if (empty($categories)) {
+                $this->debugLog("No category match found for: {$category}");
             }
         }
 
