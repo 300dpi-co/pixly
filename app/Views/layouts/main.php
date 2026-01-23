@@ -159,6 +159,12 @@
                 document.documentElement.classList.remove('dark');
                 return;
             }
+            // Adult/dark layouts always use dark mode
+            var isAdultLayout = <?= json_encode(in_array($layoutPreset, ['dark-cinematic', 'neon-nights', 'premium-luxury', 'minimal-dark'])) ?>;
+            if (isAdultLayout) {
+                document.documentElement.classList.add('dark');
+                return;
+            }
             const theme = localStorage.getItem('theme');
             if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                 document.documentElement.classList.add('dark');
