@@ -7,9 +7,7 @@
     <meta name="description" content="<?= e($meta_description ?? config('seo.site_description')) ?>">
 
     <!-- Preconnect to external resources for faster loading -->
-    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 
     <!-- Tracking Codes (GA, GTM, FB Pixel, Custom) -->
@@ -99,57 +97,45 @@
     $accentShades = generateShades($accentColor);
     ?>
 
-    <!-- Tailwind CSS via CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Compiled Tailwind CSS (much faster than CDN) -->
+    <link rel="stylesheet" href="<?= $view->url('/assets/css/app.min.css') ?>">
     <!-- Alpine.js for interactive components -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: {
-                            50: '<?= $primaryShades[50] ?>',
-                            100: '<?= $primaryShades[100] ?>',
-                            200: '<?= $primaryShades[200] ?>',
-                            300: '<?= $primaryShades[300] ?>',
-                            400: '<?= $primaryShades[400] ?>',
-                            500: '<?= $primaryShades[500] ?>',
-                            600: '<?= $primaryShades[600] ?>',
-                            700: '<?= $primaryShades[700] ?>',
-                            800: '<?= $primaryShades[800] ?>',
-                            900: '<?= $primaryShades[900] ?>',
-                        },
-                        secondary: {
-                            50: '<?= $secondaryShades[50] ?>',
-                            100: '<?= $secondaryShades[100] ?>',
-                            200: '<?= $secondaryShades[200] ?>',
-                            300: '<?= $secondaryShades[300] ?>',
-                            400: '<?= $secondaryShades[400] ?>',
-                            500: '<?= $secondaryShades[500] ?>',
-                            600: '<?= $secondaryShades[600] ?>',
-                            700: '<?= $secondaryShades[700] ?>',
-                            800: '<?= $secondaryShades[800] ?>',
-                            900: '<?= $secondaryShades[900] ?>',
-                        },
-                        accent: {
-                            50: '<?= $accentShades[50] ?>',
-                            100: '<?= $accentShades[100] ?>',
-                            200: '<?= $accentShades[200] ?>',
-                            300: '<?= $accentShades[300] ?>',
-                            400: '<?= $accentShades[400] ?>',
-                            500: '<?= $accentShades[500] ?>',
-                            600: '<?= $accentShades[600] ?>',
-                            700: '<?= $accentShades[700] ?>',
-                            800: '<?= $accentShades[800] ?>',
-                            900: '<?= $accentShades[900] ?>',
-                        },
-                    },
-                },
-            },
-            darkMode: 'class',
+    <!-- Dynamic color variables -->
+    <style>
+        :root {
+            --color-primary-50: <?= $primaryShades[50] ?>;
+            --color-primary-100: <?= $primaryShades[100] ?>;
+            --color-primary-200: <?= $primaryShades[200] ?>;
+            --color-primary-300: <?= $primaryShades[300] ?>;
+            --color-primary-400: <?= $primaryShades[400] ?>;
+            --color-primary-500: <?= $primaryShades[500] ?>;
+            --color-primary-600: <?= $primaryShades[600] ?>;
+            --color-primary-700: <?= $primaryShades[700] ?>;
+            --color-primary-800: <?= $primaryShades[800] ?>;
+            --color-primary-900: <?= $primaryShades[900] ?>;
+            --color-secondary-50: <?= $secondaryShades[50] ?>;
+            --color-secondary-100: <?= $secondaryShades[100] ?>;
+            --color-secondary-200: <?= $secondaryShades[200] ?>;
+            --color-secondary-300: <?= $secondaryShades[300] ?>;
+            --color-secondary-400: <?= $secondaryShades[400] ?>;
+            --color-secondary-500: <?= $secondaryShades[500] ?>;
+            --color-secondary-600: <?= $secondaryShades[600] ?>;
+            --color-secondary-700: <?= $secondaryShades[700] ?>;
+            --color-secondary-800: <?= $secondaryShades[800] ?>;
+            --color-secondary-900: <?= $secondaryShades[900] ?>;
+            --color-accent-50: <?= $accentShades[50] ?>;
+            --color-accent-100: <?= $accentShades[100] ?>;
+            --color-accent-200: <?= $accentShades[200] ?>;
+            --color-accent-300: <?= $accentShades[300] ?>;
+            --color-accent-400: <?= $accentShades[400] ?>;
+            --color-accent-500: <?= $accentShades[500] ?>;
+            --color-accent-600: <?= $accentShades[600] ?>;
+            --color-accent-700: <?= $accentShades[700] ?>;
+            --color-accent-800: <?= $accentShades[800] ?>;
+            --color-accent-900: <?= $accentShades[900] ?>;
         }
-    </script>
+    </style>
 
     <?php
     // Load layout preset early for dark mode decision

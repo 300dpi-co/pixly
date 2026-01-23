@@ -1,0 +1,13 @@
+{
+  "name": "fwp-gallery",
+  "version": "1.4.37",
+  "description": "FWP Image Gallery",
+  "scripts": {
+    "build:css": "tailwindcss -i ./assets/css/src/app.css -o ./assets/css/app.min.css --minify",
+    "watch:css": "tailwindcss -i ./assets/css/src/app.css -o ./assets/css/app.min.css --watch",
+    "build": "npm run build:css"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0"
+  }
+}
