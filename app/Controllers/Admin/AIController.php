@@ -42,10 +42,14 @@ class AIController extends Controller
         );
 
         // Reset any stuck "processing" entries back to pending (older than 10 min)
-        $db->execute(
-            "UPDATE ai_processing_queue SET status = 'pending'
-             WHERE status = 'processing' AND started_at < DATE_SUB(NOW(), INTERVAL 10 MINUTE)"
-        );
+        try {
+            $db->execute(
+                "UPDATE ai_processing_queue SET status = 'pending'
+                 WHERE status = 'processing' AND started_at < DATE_SUB(NOW(), INTERVAL 10 MINUTE)"
+            );
+        } catch (\Throwable $e) {
+            // Column may not exist yet - ignore, migration will add it
+        }
 
         $generator = new MetadataGenerator();
         $provider = $generator->getProvider();

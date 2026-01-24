@@ -227,37 +227,59 @@ class MetadataGenerator
 
         $isFirstItem = true;
         foreach ($queue as $item) {
-            // Add delay between API calls to avoid rate limiting (skip for first item)
-            if (!$isFirstItem) {
-                sleep(2); // 2 second delay between images
-            }
-            $isFirstItem = false;
+            try {
+                // Add delay between API calls to avoid rate limiting (skip for first item)
+                if (!$isFirstItem) {
+                    sleep(2); // 2 second delay between images
+                }
+                $isFirstItem = false;
 
-            // Mark as processing
-            $db->update('ai_processing_queue', [
-                'status' => 'processing',
-                'attempts' => $item['attempts'] + 1,
-            ], 'id = :where_id', ['where_id' => $item['id']]);
-
-            // Process the image
-            $success = $this->processImage($item['image_id']);
-
-            if ($success) {
-                // Delete from queue after successful processing (keep queue clean)
-                $db->delete('ai_processing_queue', 'id = :id', ['id' => $item['id']]);
-                $results['processed']++;
-            } else {
-                $errorMessage = implode('; ', $this->errors);
-                $maxAttempts = $item['max_attempts'] ?? 3; // Default to 3 attempts
-                $newStatus = ($item['attempts'] + 1) >= $maxAttempts ? 'failed' : 'pending';
-
+                // Mark as processing with started_at timestamp
                 $db->update('ai_processing_queue', [
-                    'status' => $newStatus,
-                    'error_message' => $errorMessage,
+                    'status' => 'processing',
+                    'attempts' => $item['attempts'] + 1,
+                    'started_at' => date('Y-m-d H:i:s'),
                 ], 'id = :where_id', ['where_id' => $item['id']]);
 
+                // Process the image (this reconnects DB internally after AI call)
+                $success = $this->processImage($item['image_id']);
+
+                // Reconnect database after AI processing (connection may have timed out)
+                $db = app()->reconnectDatabase();
+
+                if ($success) {
+                    // Delete from queue after successful processing (keep queue clean)
+                    $db->delete('ai_processing_queue', 'id = :id', ['id' => $item['id']]);
+                    $results['processed']++;
+                } else {
+                    $errorMessage = implode('; ', $this->errors);
+                    $maxAttempts = $item['max_attempts'] ?? 3; // Default to 3 attempts
+                    $newStatus = ($item['attempts'] + 1) >= $maxAttempts ? 'failed' : 'pending';
+
+                    $db->update('ai_processing_queue', [
+                        'status' => $newStatus,
+                        'error_message' => $errorMessage,
+                    ], 'id = :where_id', ['where_id' => $item['id']]);
+
+                    $results['failed']++;
+                    $results['errors'][] = "Image {$item['image_id']}: {$errorMessage}";
+                }
+            } catch (\Throwable $e) {
+                // Log error and continue with next image
+                error_log("AI queue processing error for image {$item['image_id']}: " . $e->getMessage());
                 $results['failed']++;
-                $results['errors'][] = "Image {$item['image_id']}: {$errorMessage}";
+                $results['errors'][] = "Image {$item['image_id']}: " . $e->getMessage();
+
+                // Try to reconnect and mark as failed
+                try {
+                    $db = app()->reconnectDatabase();
+                    $db->update('ai_processing_queue', [
+                        'status' => 'failed',
+                        'error_message' => $e->getMessage(),
+                    ], 'id = :where_id', ['where_id' => $item['id']]);
+                } catch (\Throwable $e2) {
+                    // Ignore - can't update queue
+                }
             }
         }
 

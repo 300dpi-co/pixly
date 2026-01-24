@@ -361,6 +361,13 @@ class MigrationRunner
             $this->addColumn('ai_processing_queue', 'completed_at', 'DATETIME NULL');
             $this->markComplete('add_queue_completed_at_column');
         }
+
+        // Migration: Add started_at and max_attempts columns to ai_processing_queue
+        if (!$this->hasRun('add_queue_started_at_column')) {
+            $this->addColumn('ai_processing_queue', 'started_at', 'DATETIME NULL');
+            $this->addColumn('ai_processing_queue', 'max_attempts', 'TINYINT DEFAULT 3');
+            $this->markComplete('add_queue_started_at_column');
+        }
     }
 
     /**
