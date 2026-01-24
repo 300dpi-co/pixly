@@ -378,14 +378,36 @@ class UploadController extends Controller
                     ['image_id' => $imageId, 's1' => 'pending', 's2' => 'processing']
                 );
             } else {
-                // Log why AI failed
+                // AI not configured or failed - still publish if moderation approved
                 $errors = $generator->getErrors();
                 if (!empty($errors)) {
                     error_log('AI processing skipped for image ' . $imageId . ': ' . implode('; ', $errors));
                 }
+
+                $image = $db->fetch("SELECT moderation_status FROM images WHERE id = :id", ['id' => $imageId]);
+                if ($image && $image['moderation_status'] === 'approved') {
+                    $db->update('images', [
+                        'status' => 'published',
+                        'published_at' => date('Y-m-d H:i:s'),
+                    ], 'id = :id', ['id' => $imageId]);
+                }
             }
         } catch (\Throwable $e) {
             error_log('AI processing failed for image ' . $imageId . ': ' . $e->getMessage());
+
+            // Still try to publish if approved (same as Admin controller)
+            try {
+                $db = $this->db();
+                $image = $db->fetch("SELECT moderation_status FROM images WHERE id = :id", ['id' => $imageId]);
+                if ($image && $image['moderation_status'] === 'approved') {
+                    $db->update('images', [
+                        'status' => 'published',
+                        'published_at' => date('Y-m-d H:i:s'),
+                    ], 'id = :id', ['id' => $imageId]);
+                }
+            } catch (\Throwable $e2) {
+                // Ignore
+            }
         }
     }
 }

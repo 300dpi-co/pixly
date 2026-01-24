@@ -340,6 +340,27 @@ class MigrationRunner
             }
             $this->markComplete('create_upload_batches_table');
         }
+
+        // Migration: Add missing AI processing columns to images table
+        if (!$this->hasRun('add_ai_processing_columns')) {
+            $this->addColumn('images', 'ai_processed_at', 'DATETIME NULL');
+            $this->addColumn('images', 'ai_description', 'TEXT NULL');
+            $this->addColumn('images', 'ai_tags', 'JSON NULL');
+            $this->addColumn('images', 'ai_category_suggestions', 'JSON NULL');
+            $this->markComplete('add_ai_processing_columns');
+        }
+
+        // Migration: Add moderation_notes column to images table
+        if (!$this->hasRun('add_moderation_notes_column')) {
+            $this->addColumn('images', 'moderation_notes', 'TEXT NULL');
+            $this->markComplete('add_moderation_notes_column');
+        }
+
+        // Migration: Add completed_at column to ai_processing_queue
+        if (!$this->hasRun('add_queue_completed_at_column')) {
+            $this->addColumn('ai_processing_queue', 'completed_at', 'DATETIME NULL');
+            $this->markComplete('add_queue_completed_at_column');
+        }
     }
 
     /**
