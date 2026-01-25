@@ -1,6 +1,6 @@
 {
   "name": "fwp-gallery",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "FWP Image Gallery",
   "scripts": {
     "build:css": "tailwindcss -i ./assets/css/src/app.css -o ./assets/css/app.min.css --minify",
